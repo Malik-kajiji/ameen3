@@ -1,0 +1,4 @@
+/backend/node_modules
+/thrive-gym-central-main/node_modules
+/frontend2/node_modules
+.env

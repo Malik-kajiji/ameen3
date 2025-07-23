@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.alert {
+    position: fixed;
+    overflow: hidden;
+    left: 50%;
+    top: 0;
+    transform: translate(-50%,-110%);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    transition: transform 0.7s;
+    z-index: 999;
+}
+.alert::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    height: 4px;
+    left: 0;
+    background-color: #fff;
+    width: 100%;
+}
+.alert.error {
+    background-color: #D63031;
+}
+.alert.warrning {
+    background-color: #f39c12;
+}
+.alert.success {
+    background-color: #00B894;
+}
+.alert.showen {
+    transform: translate(-50%,50%);
+}
+.alert.showen::before {
+    transition: 5s;
+    width: 0%;
+}
+.alert p,
+.alert span {
+    font-size: var(--Small-FS);
+    font-weight: var(--Normal-FW);
+    color: #fff;
+    margin-inline: 10px;
+    display: flex;
+}
+.alert span {
+    font-size: var(--Heading2-FS);
+    font-weight: var(--Bold-FW);
+    color: #fff;
+    margin-inline: 10px;
+    display: flex;
+}
+@media only screen and (min-width: 1400px){
+    .alert {
+        min-width: 350px;
+        width: fit-content;
+        max-width: 800px;
+        border-radius: 10px;
+        height: 70px;
+    }
+}
+@media only screen and (max-width: 1400px) and (min-width:1200px){
+    .alert {
+        min-width: 350px;
+        width: fit-content;
+        max-width: 800px;
+        border-radius: 10px;
+        height: 70px;
+    }
+}
+@media only screen and (max-width: 1200px) and (min-width:992px) {
+    .alert {
+        min-width: 300px;
+        width: fit-content;
+        max-width: 650px;
+        border-radius: 10px;
+        height: 70px;
+    }
+}
+@media only screen and (max-width: 992px) and (min-width:768px){
+    .alert {
+        min-width: 300px;
+        width: fit-content;
+        max-width: 650px;
+        border-radius: 10px;
+        height: 70px;
+    }
+}
+@media only screen and (max-width: 768px) and (min-width:480px){
+    .alert {
+        min-width: 200px;
+        width: fit-content;
+        max-width: 400px;
+        border-radius: 5px;
+        height: 50px;
+    }
+}
+@media only screen and (max-width: 480px)and (min-width:370px){
+    .alert {
+        min-width: 150px;
+        width: fit-content;
+        max-width: 250px;
+        border-radius: 10px;
+        height: 40px;
+    }
+}
+@media only screen and (max-width: 370px){
+    .alert {
+        min-width: 150px;
+        width: fit-content;
+        max-width: 250px;
+        border-radius: 10px;
+        height: 40px;
+    }
+}
