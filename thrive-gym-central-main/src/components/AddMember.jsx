@@ -1,17 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Upload, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const plans = [
-  { key: 'monthly', name: 'شهرية', price: '170 د.ل', duration: 'شهر واحد' },
-  { key: 'quarter', name: '3 أشهر', price: '450 د.ل', duration: '3 أشهر' },
-  { key: 'half', name: '6 أشهر', price: '750 د.ل', duration: '6 أشهر' },
-  { key: 'yearly', name: 'سنوية', price: '1200 د.ل', duration: '12 شهر' }
-];
+import { useToast } from '@/hooks/use-toast';
+import useMembers from '@/hooks/useMembers';
 
 const AddMember = ({ onNavigate }) => {
+  const { toast } = useToast();
+  const { createMember, packages, loading: membersLoading, fetchPackages } = useMembers();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -28,28 +25,91 @@ const AddMember = ({ onNavigate }) => {
   });
 
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  // Fetch packages when component mounts
+  useEffect(() => {
+    fetchPackages();
+  }, [fetchPackages]);
+
+  const handleSubmit = async (e) => {
     e?.preventDefault?.();
     setIsSubmitted(true);
+    
+    // Validate required fields
     if (!formData.name || !formData.phone || !formData.email || !formData.nationality || !formData.nationalId || !formData.plan) {
+      toast({
+        title: "خطأ في الإدخال",
+        description: "يرجى ملء جميع الحقول المطلوبة",
+        variant: "destructive",
+      });
       return;
     }
-    alert('تم إنشاء العضو بنجاح!');
-    onNavigate('members');
+    
+    try {
+      setLoading(true);
+      
+      // Map form data to API format
+      const memberData = {
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email,
+        nationality: formData.nationality,
+        nationalId: formData.nationalId,
+        weight: formData.weight,
+        height: formData.height,
+        occupation: formData.occupation,
+        dateOfBirth: formData.dateOfBirth,
+        plan: formData.plan, // This is now the package title from database
+        city: formData.nationality,
+        gender: 'male' // Default to male, could be added to form later
+      };
+      
+      await createMember(memberData);
+      
+      toast({
+        title: "تم إنشاء العضو بنجاح",
+        description: `تم إنشاء عضو جديد باسم ${formData.name}`,
+      });
+      
+      // Reset form
+      setFormData({
+        name: '',
+        phone: '',
+        email: '',
+        nationality: '',
+        nationalId: '',
+        weight: '',
+        height: '',
+        occupation: '',
+        dateOfBirth: '',
+        fingerprint: '',
+        documents: null,
+        plan: ''
+      });
+      
+      // Navigate to members page
+      onNavigate('members');
+    } catch (err) {
+      toast({
+        title: "خطأ في إنشاء العضو",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-
-  const planClass = (key) =>
-    formData.plan === key
+  const planClass = (packageTitle) =>
+    formData.plan === packageTitle
       ? "border-primary bg-primary/10 ring-2 ring-primary"
       : "border-border hover:bg-accent transition-colors";
 
- 
   const cardVariant = {
     hidden: { opacity: 0, y: 32 },
     visible: (i = 1) => ({
@@ -57,6 +117,32 @@ const AddMember = ({ onNavigate }) => {
       y: 0,
       transition: { delay: i * 0.15 }
     })
+  };
+
+  // Format package data for display
+  const formatPackageForDisplay = (pkg) => {
+    // Convert period from days to more readable format
+    let duration = '';
+    if (pkg.period === 30) {
+      duration = 'شهر واحد';
+    } else if (pkg.period === 90) {
+      duration = '3 أشهر';
+    } else if (pkg.period === 180) {
+      duration = '6 أشهر';
+    } else if (pkg.period === 365) {
+      duration = '12 شهر';
+    } else {
+      duration = `${pkg.period} يوم`;
+    }
+    
+    // Format price
+    const price = `${pkg.price} د.ل`;
+    
+    return {
+      title: pkg.title,
+      price,
+      duration
+    };
   };
 
   return (
@@ -90,23 +176,53 @@ const AddMember = ({ onNavigate }) => {
              
               <div>
                 <label className="block text-sm font-medium mb-2 text-right">الاسم الكامل *</label>
-                <input type="text" className={`w-full px-3 py-2 border ${isSubmitted && !formData.name ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`} value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} required />
+                <input 
+                  type="text" 
+                  className={`w-full px-3 py-2 border ${isSubmitted && !formData.name ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`} 
+                  value={formData.name} 
+                  onChange={(e) => handleInputChange('name', e.target.value)} 
+                  required 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-right">رقم الهاتف *</label>
-                <input type="tel" className={`w-full px-3 py-2 border ${isSubmitted && !formData.phone ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`} value={formData.phone} onChange={(e) => handleInputChange('phone', e.target.value)} required />
+                <input 
+                  type="tel" 
+                  className={`w-full px-3 py-2 border ${isSubmitted && !formData.phone ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`} 
+                  value={formData.phone} 
+                  onChange={(e) => handleInputChange('phone', e.target.value)} 
+                  required 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-right">عنوان البريد الإلكتروني *</label>
-                <input type="email" className={`w-full px-3 py-2 border ${isSubmitted && !formData.email ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`} value={formData.email} onChange={(e) => handleInputChange('email', e.target.value)} required />
+                <input 
+                  type="email" 
+                  className={`w-full px-3 py-2 border ${isSubmitted && !formData.email ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`} 
+                  value={formData.email} 
+                  onChange={(e) => handleInputChange('email', e.target.value)} 
+                  required 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-right">الجنسية *</label>
-                <input type="text" className={`w-full px-3 py-2 border ${isSubmitted && !formData.nationality ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`} value={formData.nationality} onChange={(e) => handleInputChange('nationality', e.target.value)} required />
+                <input 
+                  type="text" 
+                  className={`w-full px-3 py-2 border ${isSubmitted && !formData.nationality ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`} 
+                  value={formData.nationality} 
+                  onChange={(e) => handleInputChange('nationality', e.target.value)} 
+                  required 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-right">الرقم الوطني *</label>
-                <input type="text" className={`w-full px-3 py-2 border ${isSubmitted && !formData.nationalId ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`} value={formData.nationalId} onChange={(e) => handleInputChange('nationalId', e.target.value)} required />
+                <input 
+                  type="text" 
+                  className={`w-full px-3 py-2 border ${isSubmitted && !formData.nationalId ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`} 
+                  value={formData.nationalId} 
+                  onChange={(e) => handleInputChange('nationalId', e.target.value)} 
+                  required 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-right">البصمة *</label>
@@ -127,23 +243,48 @@ const AddMember = ({ onNavigate }) => {
             <CardContent className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2 text-right">الوزن (كيلوغرام)</label>
-                <input type="number" className="w-full px-3 py-2 border border-input rounded-md bg-background text-right" value={formData.weight} onChange={(e) => handleInputChange('weight', e.target.value)} />
+                <input 
+                  type="number" 
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-right" 
+                  value={formData.weight} 
+                  onChange={(e) => handleInputChange('weight', e.target.value)} 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-right">الطول (سنتيمتر)</label>
-                <input type="number" className="w-full px-3 py-2 border border-input rounded-md bg-background text-right" value={formData.height} onChange={(e) => handleInputChange('height', e.target.value)} />
+                <input 
+                  type="number" 
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-right" 
+                  value={formData.height} 
+                  onChange={(e) => handleInputChange('height', e.target.value)} 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-right">المهنة</label>
-                <input type="text" className="w-full px-3 py-2 border border-input rounded-md bg-background text-right" value={formData.occupation} onChange={(e) => handleInputChange('occupation', e.target.value)} />
+                <input 
+                  type="text" 
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-right" 
+                  value={formData.occupation} 
+                  onChange={(e) => handleInputChange('occupation', e.target.value)} 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-right">تاريخ الميلاد</label>
-                <input type="date" className="w-full px-3 py-2 border border-input rounded-md bg-background text-right" value={formData.dateOfBirth} onChange={(e) => handleInputChange('dateOfBirth', e.target.value)} />
+                <input 
+                  type="date" 
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-right" 
+                  value={formData.dateOfBirth} 
+                  onChange={(e) => handleInputChange('dateOfBirth', e.target.value)} 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-right">المستندات</label>
-                <input type="file" multiple className="w-full text-right" onChange={(e) => handleInputChange('documents', e.target.files)} />
+                <input 
+                  type="file" 
+                  multiple 
+                  className="w-full text-right" 
+                  onChange={(e) => handleInputChange('documents', e.target.files)} 
+                />
               </div>
             </CardContent>
           </Card>
@@ -156,28 +297,41 @@ const AddMember = ({ onNavigate }) => {
             <CardTitle className="text-right">خطة الاشتراك *</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-4">
-              <AnimatePresence>
-                {plans.map((plan, i) => (
-                  <motion.div
-                    key={plan.key}
-                    className={`border rounded-lg p-4 cursor-pointer text-right flex flex-col gap-2 ${planClass(plan.key)}`}
-                    onClick={() => handleInputChange('plan', plan.key)}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1, transition: { delay: 0.1 * i } }}
-                    whileHover={{ scale: 1.04 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                  >
-                    <div className="flex items-center gap-2 justify-between">
-                      <span className="font-semibold">{plan.name}</span>
-                      {formData.plan === plan.key && <CheckCircle2 className="text-primary w-5 h-5" />}
-                    </div>
-                    <p className="text-2xl font-bold text-primary">{plan.price}</p>
-                    <p className="text-sm text-muted-foreground">{plan.duration}</p>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
+            {membersLoading ? (
+              <div className="text-center py-4 text-muted-foreground">
+                جارٍ تحميل الخطط...
+              </div>
+            ) : packages.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground">
+                لا توجد خطط متاحة
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-4">
+                <AnimatePresence>
+                  {packages.map((pkg, i) => {
+                    const displayPackage = formatPackageForDisplay(pkg);
+                    return (
+                      <motion.div
+                        key={pkg._id}
+                        className={`border rounded-lg p-4 cursor-pointer text-right flex flex-col gap-2 ${planClass(pkg.title)}`}
+                        onClick={() => handleInputChange('plan', pkg.title)}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1, transition: { delay: 0.1 * i } }}
+                        whileHover={{ scale: 1.04 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                      >
+                        <div className="flex items-center gap-2 justify-between">
+                          <span className="font-semibold">{displayPackage.title}</span>
+                          {formData.plan === pkg.title && <CheckCircle2 className="text-primary w-5 h-5" />}
+                        </div>
+                        <p className="text-2xl font-bold text-primary">{displayPackage.price}</p>
+                        <p className="text-sm text-muted-foreground">{displayPackage.duration}</p>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+            )}
             {isSubmitted && !formData.plan && <div className="text-red-500 text-sm mt-2 text-right">اختر خطة اشتراك</div>}
           </CardContent>
         </Card>
@@ -193,10 +347,12 @@ const AddMember = ({ onNavigate }) => {
             !formData.email ||
             !formData.nationality ||
             !formData.nationalId ||
-            !formData.plan
+            !formData.plan ||
+            loading ||
+            membersLoading
           }
         >
-          إنشاء عضو
+          {loading ? 'جاري الإنشاء...' : 'إنشاء عضو'}
         </Button>
         <Button variant="outline" onClick={() => onNavigate('members')}>
           إلغاء

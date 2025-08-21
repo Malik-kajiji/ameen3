@@ -1,55 +1,108 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { useSelector } from 'react-redux';
-
+import useAdminAuth from './useAdminAuth';
 
 const useHomePage = () => {
   const [mainData, setMainData] = useState(null);
   const [timeframeData, setTimeframeData] = useState(null);
-  const [selectedTimeframe, setSelectedTimeframe] = useState('weekly');
+  const [selectedTimeframe, setSelectedTimeframe] = useState('week');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const user = useSelector(state => state.userController.user)
+  
+  const { admin, loginAsAdmin, loading: adminLoading, error: adminError } = useAdminAuth();
+
+  // Auto-login as admin when hook is used
+  useEffect(() => {
+    const autoLogin = async () => {
+      try {
+        // Using the owner credentials from the backend
+        await loginAsAdmin('ameen@gmail.com', '12345678');
+      } catch (err) {
+        setError({
+          message: 'فشل في تسجيل الدخول التلقائي كمسؤول'
+        });
+      }
+    };
+
+    if (!admin && !adminLoading) {
+      autoLogin();
+    }
+  }, [admin, adminLoading, loginAsAdmin]);
 
   const fetchMainData = useCallback(async () => {
+    if (!admin?.token) {
+      // Wait for admin login
+      return;
+    }
     try {
       setLoading(true);
-      const res = await axios.get(`${process.env.VITE_API_BASE_URL}/dashboard/main`, {
-        headers: {
-          Authorization: `Bearer ${user.token}`
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_BASE_URL}/dashboard/main`,
+        {
+          headers: {
+            Authorization: `Bearer ${admin.token}`,
+          },
         }
-      });
+      );
       setMainData(res.data);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load main dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  }, [user.token]);
-
-  const fetchTimeframeData = useCallback(async (timeframe = 'weekly') => {
-    try {
-      setLoading(true);
-      const res = await axios.get(`${process.env.VITE_API_BASE_URL}/dashboard/${timeframe}`, {
-        headers: {
-          Authorization: `Bearer ${user.token}`
-        }
+      setError({
+        message:
+          err.response?.data?.message || 'فشل تحميل بيانات لوحة التحكم الرئيسية',
       });
-      setTimeframeData(res.data);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load timeframe data');
     } finally {
       setLoading(false);
     }
-  }, [user.token]);
+  }, [admin?.token]);
+
+  const fetchTimeframeData = useCallback(
+    async (timeframe = 'week') => {
+      if (!admin?.token) {
+        // Wait for admin login
+        return;
+      }
+      
+      // Map frontend timeframe values to backend endpoint values
+      const timeframeMapping = {
+        'week': 'weekly',
+        'month': 'monthly',
+        'year': 'yearly'
+      };
+      
+      const backendTimeframe = timeframeMapping[timeframe] || 'weekly';
+      
+      try {
+        setLoading(true);
+        const res = await axios.get(
+          `${import.meta.env.VITE_API_BASE_URL}/dashboard/${backendTimeframe}`,
+          {
+            headers: {
+              Authorization: `Bearer ${admin.token}`,
+            },
+          }
+        );
+        setTimeframeData(res.data);
+      } catch (err) {
+        setError({
+          message:
+            err.response?.data?.message || 'فشل تحميل بيانات الفترة الزمنية',
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [admin?.token]
+  );
 
   useEffect(() => {
-    fetchMainData();
-    fetchTimeframeData(selectedTimeframe);
-  }, [fetchMainData, fetchTimeframeData, selectedTimeframe]);
+    if (admin?.token) {
+      fetchMainData();
+      fetchTimeframeData(selectedTimeframe);
+    }
+  }, [admin?.token, fetchMainData, fetchTimeframeData, selectedTimeframe]);
 
   const changeTimeframe = (newTimeframe) => {
-    if (['weekly', 'monthly', 'yearly'].includes(newTimeframe)) {
+    if (['week', 'month', 'year'].includes(newTimeframe)) {
       setSelectedTimeframe(newTimeframe);
     }
   };
@@ -59,8 +112,9 @@ const useHomePage = () => {
     timeframeData,
     selectedTimeframe,
     changeTimeframe,
-    loading,
-    error
+    loading: loading || adminLoading,
+    error: error || adminError,
+    admin,
   };
 };
 

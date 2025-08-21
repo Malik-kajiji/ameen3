@@ -1,215 +1,192 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Save, X, Send, Clock } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import useNotifications from '@/hooks/useNotifications';
+import { useToast } from '@/hooks/use-toast';
 
 const CreateNotificationDialog = ({ isOpen, onClose, onSave }) => {
-  const [notificationData, setNotificationData] = useState({
+  const { verifyPhoneNumber } = useNotifications();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
     title: '',
     message: '',
-    type: 'manual',
-    recipients: 'all',
-    sendNow: true,
-    scheduledDate: '',
-    scheduledTime: '',
-    priority: 'normal'
+    recipient: '',
+    recipientPhone: '',
+    type: 'يدوي',
+    scheduledDate: ''
   });
 
-  const recipientOptions = [
-    { value: 'all', label: 'جميع الأعضاء' },
-    { value: 'active', label: 'الأعضاء النشطون' },
-    { value: 'expired', label: 'الأعضاء المنتهية صلاحيتهم' },
-    { value: 'staff', label: 'الموظفون' },
-    { value: 'trainers', label: 'المدربون' },
-    { value: 'custom', label: 'مجموعة مخصصة' }
-  ];
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
 
-  const priorityOptions = [
-    { value: 'low', label: 'منخفضة', color: 'text-blue-600' },
-    { value: 'normal', label: 'عادية', color: 'text-green-600' },
-    { value: 'high', label: 'عالية', color: 'text-orange-600' },
-    { value: 'urgent', label: 'عاجلة', color: 'text-red-600' }
-  ];
+    try {
+      // If it's not a scheduled notification, verify the phone number
+      if (formData.type !== 'مجدول') {
+        const verificationResult = await verifyPhoneNumber(formData.recipientPhone);
+        formData.recipient = verificationResult.username;
+      }
 
-  const handleSave = () => {
-    const newNotification = {
-      id: `NOT-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
-      ...notificationData,
-      createdDate: new Date().toISOString(),
-      status: notificationData.sendNow ? 'مُرسل' : 'مجدول',
-      recipient: recipientOptions.find(r => r.value === notificationData.recipients)?.label || 'غير محدد'
-    };
-    onSave(newNotification);
-    onClose();
-    setNotificationData({
-      title: '',
-      message: '',
-      type: 'manual',
-      recipients: 'all',
-      sendNow: true,
-      scheduledDate: '',
-      scheduledTime: '',
-      priority: 'normal'
-    });
+      // Add scheduled date if type is مجدول
+      const notificationData = {
+        ...formData,
+        scheduledDate: formData.type === 'مجدول' ? new Date(formData.scheduledDate).toISOString() : null
+      };
+
+      await onSave(notificationData);
+      onClose();
+      setFormData({
+        title: '',
+        message: '',
+        recipient: '',
+        recipientPhone: '',
+        type: 'يدوي',
+        scheduledDate: ''
+      });
+    } catch (error) {
+      toast({
+        title: 'خطأ',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePhoneBlur = async () => {
+    if (formData.recipientPhone && formData.type !== 'مجدول') {
+      try {
+        const result = await verifyPhoneNumber(formData.recipientPhone);
+        setFormData(prev => ({
+          ...prev,
+          recipient: result.username
+        }));
+        toast({
+          title: 'تم العثور على المستخدم',
+          description: `سيتم إرسال الإشعار إلى ${result.username}`
+        });
+      } catch (error) {
+        toast({
+          title: 'خطأ',
+          description: error.message,
+          variant: 'destructive'
+        });
+        setFormData(prev => ({
+          ...prev,
+          recipientPhone: '',
+          recipient: ''
+        }));
+      }
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl rtl">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <div className="flex justify-between items-center">
-            <DialogTitle className="text-xl font-bold text-right">إنشاء إشعار جديد</DialogTitle>
-            <Button onClick={onClose} variant="ghost" size="sm">
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
+          <DialogTitle>إنشاء إشعار جديد</DialogTitle>
         </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="title">عنوان الإشعار</Label>
+            <Input
+              id="title"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              required
+              className="text-right"
+            />
+          </div>
 
-        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="message">نص الإشعار</Label>
+            <Textarea
+              id="message"
+              value={formData.message}
+              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+              required
+              className="text-right"
+            />
+          </div>
 
-          <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="type">نوع الإشعار</Label>
+            <Select
+              value={formData.type}
+              onValueChange={(value) => setFormData({ ...formData, type: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="يدوي">يدوي</SelectItem>
+                <SelectItem value="مجدول">مجدول</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {formData.type === 'مجدول' ? (
             <div className="space-y-2">
-              <Label htmlFor="title" className="text-right">عنوان الإشعار</Label>
+              <Label htmlFor="scheduledDate">موعد الإرسال</Label>
               <Input
-                id="title"
-                value={notificationData.title}
-                onChange={(e) => setNotificationData({ ...notificationData, title: e.target.value })}
+                id="scheduledDate"
+                type="datetime-local"
+                value={formData.scheduledDate}
+                onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
+                required
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="phone">رقم الهاتف</Label>
+              <Input
+                id="phone"
+                value={formData.recipientPhone}
+                onChange={(e) => setFormData({ ...formData, recipientPhone: e.target.value })}
+                onBlur={handlePhoneBlur}
+                placeholder="+218 91 234 5678"
+                required
                 className="text-right"
-                placeholder="مثل: تذكير انتهاء العضوية"
               />
+              {formData.recipient && (
+                <p className="text-sm text-muted-foreground">
+                  سيتم إرسال الإشعار إلى: {formData.recipient}
+                </p>
+              )}
             </div>
+          )}
 
-            <div className="space-y-2">
-              <Label htmlFor="message" className="text-right">محتوى الرسالة</Label>
-              <Textarea
-                id="message"
-                value={notificationData.message}
-                onChange={(e) => setNotificationData({ ...notificationData, message: e.target.value })}
-                className="text-right"
-                rows={4}
-                placeholder="اكتب محتوى الإشعار هنا..."
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="recipients" className="text-right">المستقبلون</Label>
-              <Select
-                value={notificationData.recipients}
-                onValueChange={(value) => setNotificationData({ ...notificationData, recipients: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر المستقبلين" />
-                </SelectTrigger>
-                <SelectContent>
-                  {recipientOptions.map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="priority" className="text-right">الأولوية</Label>
-              <Select
-                value={notificationData.priority}
-                onValueChange={(value) => setNotificationData({ ...notificationData, priority: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {priorityOptions.map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <span className={option.color}>{option.label}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2 space-x-reverse">
-              <Checkbox
-                id="sendNow"
-                checked={notificationData.sendNow}
-                onCheckedChange={(checked) => setNotificationData({
-                  ...notificationData,
-                  sendNow: checked
-                })}
-              />
-              <Label htmlFor="sendNow" className="flex items-center gap-2">
-                <Send className="w-4 h-4" />
-                إرسال فوري
-              </Label>
-            </div>
-
-            {!notificationData.sendNow && (
-              <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">جدولة الإرسال</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="scheduledDate" className="text-right">التاريخ</Label>
-                    <Input
-                      id="scheduledDate"
-                      type="date"
-                      value={notificationData.scheduledDate}
-                      onChange={(e) => setNotificationData({
-                        ...notificationData,
-                        scheduledDate: e.target.value
-                      })}
-                      className="text-right"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="scheduledTime" className="text-right">الوقت</Label>
-                    <Input
-                      id="scheduledTime"
-                      type="time"
-                      value={notificationData.scheduledTime}
-                      onChange={(e) => setNotificationData({
-                        ...notificationData,
-                        scheduledTime: e.target.value
-                      })}
-                      className="text-right"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-2 justify-end pt-4 border-t">
-            <Button onClick={onClose} variant="outline">
+          <div className="flex justify-end space-x-2 space-x-reverse">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={loading}
+            >
               إلغاء
             </Button>
-            <Button onClick={handleSave} className="btn-gradient">
-              {notificationData.sendNow ? (
-                <>
-                  <Send className="w-4 h-4 ml-2" />
-                  إرسال الآن
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 ml-2" />
-                  جدولة الإرسال
-                </>
-              )}
+            <Button type="submit" disabled={loading}>
+              {loading ? 'جاري الإنشاء...' : 'إنشاء'}
             </Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

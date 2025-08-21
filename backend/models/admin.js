@@ -5,31 +5,57 @@ const schema = mongoose.Schema
 
 const adminSchema = new schema({
     username: {
-        type:String,
-        required:true,
-        unique:true
+        type: String,
+        required: true,
+        unique: true
     },
     password: {
-        type:String,
-        required:true
+        type: String,
+        required: true
+    },
+    name: {
+        type: String,
+        required: true
+    },
+    email: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    role: {
+        type: String,
+        enum: ['مدير عام', 'مدير', 'دعم فني'],
+        required: true
+    },
+    status: {
+        type: String,
+        enum: ['نشط', 'غير نشط'],
+        default: 'نشط'
     },
     access: {
-        type:Array,
-        default:[],
-        required:true
+        type: Array,
+        default: [],
+        required: true
+    },
+    lastLogin: {
+        type: Date,
+        default: null
     }
-})
+}, { timestamps: true })
 
-adminSchema.statics.createAdmin = async function(username,password,access) {
-    const exists = await this.findOne({username})
-    if(exists){
-        throw Error('الاسم موجود بالفعل')
+adminSchema.statics.createAdmin = async function(username, password, name, email, role, access) {
+    const exists = await this.findOne({ $or: [{ username }, { email }] })
+    if (exists) {
+        throw Error('اسم المستخدم أو البريد الإلكتروني موجود بالفعل')
     }
     const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(password,salt)
+    const hash = await bcrypt.hash(password, salt)
     const admin = await this.create({
         username,
-        password:hash,
+        password: hash,
+        name,
+        email,
+        role,
         access
     })
     return admin
@@ -45,17 +71,38 @@ adminSchema.statics.deleteAdmin = async function(id){
     }
 }
 
-adminSchema.statics.loginAsAdmin = async function(username,password) {
-    const admin = await this.findOne({username})
-    if(!admin){
-        throw Error('الاسم غير موجود')
+adminSchema.statics.loginAsAdmin = async function(username, password) {
+    // Check if it's the super admin
+    if (username === process.env.OWNER_EMAIL && password === process.env.OWNER_PASS) {
+        return {
+            _id: process.env.OWNER_ID,
+            username: process.env.OWNER_EMAIL,
+            name: 'Super Admin',
+            email: process.env.OWNER_EMAIL,
+            role: 'مدير عام',
+            access: ['الكل'],
+            status: 'نشط',
+            lastLogin: new Date()
+        };
     }
 
-    const match = await bcrypt.compare(password,admin.password)
+    // If not super admin, check regular admins
+    const admin = await this.findOne({ username })
+    if (!admin) {
+        throw Error('اسم المستخدم غير موجود')
+    }
 
-    if(!match){
+    if (admin.status === 'غير نشط') {
+        throw Error('هذا الحساب غير نشط')
+    }
+
+    const match = await bcrypt.compare(password, admin.password)
+    if (!match) {
         throw Error('كلمة مرور غير صحيحة')
     }
+
+    // Update last login time
+    await this.findOneAndUpdate({ _id: admin._id }, { lastLogin: new Date() })
 
     return admin
 }

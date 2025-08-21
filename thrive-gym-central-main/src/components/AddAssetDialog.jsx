@@ -40,14 +40,32 @@ const AddAssetDialog = ({ isOpen, onClose, onSave }) => {
   })
 
   const handleSave = () => {
+    // Validate required fields
+    if (!assetData.name.trim()) {
+      alert("الرجاء إدخال اسم الأصل");
+      return;
+    }
+    
+    if (!assetData.value.trim()) {
+      alert("الرجاء إدخال قيمة الأصل");
+      return;
+    }
+    
+    const price = parseFloat(assetData.value.replace(/[^\d\u0660-\u0669\u06F0-\u06F9.-]/g, ''));
+    if (isNaN(price) || price <= 0) {
+      alert("الرجاء إدخال قيمة صحيحة للأصل");
+      return;
+    }
+    
     const newAsset = {
-      id: `AST-${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`,
-      ...assetData,
-      lastMaintenance: "جديد",
-      nextMaintenance: format(
-        new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-        "yyyy-MM-dd"
-      ),
+      name: assetData.name,
+      category: assetData.category,
+      price: price,
+      purchaseDate: assetData.purchaseDate || new Date(),
+      warrantyExpire: assetData.warranty || new Date(),
+      status: assetData.status,
+      location: assetData.location,
+      supplier: assetData.supplier
     }
     onSave(newAsset)
     onClose()

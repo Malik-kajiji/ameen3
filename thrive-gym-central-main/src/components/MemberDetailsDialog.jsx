@@ -5,17 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { User, CreditCard, Edit, Phone } from 'lucide-react';
 
-const subscriptionHistory = [
-  { id: 1, plan: 'شهري', startDate: '2024-01-15', endDate: '2024-02-15', amount: '150 د.ل', status: 'مكتمل' },
-  { id: 2, plan: 'شهري', startDate: '2023-12-15', endDate: '2024-01-15', amount: '150 د.ل', status: 'مكتمل' },
-  { id: 3, plan: '3 أشهر', startDate: '2023-09-15', endDate: '2023-12-15', amount: '400 د.ل', status: 'مكتمل' },
-];
-
-const pauseHistory = [
-  { id: 1, reason: 'سفر للخارج', startDate: '2023-11-01', endDate: '2023-11-30', duration: '30 يوم', status: 'مكتمل' },
-  { id: 2, reason: 'أسباب طبية', startDate: '2023-08-15', endDate: '2023-09-01', duration: '17 يوم', status: 'مكتمل' },
-];
-
 const getStatusColor = (status) => {
   switch (status) {
     case 'نشط': return 'bg-green-100 text-green-800';
@@ -81,7 +70,7 @@ const MemberDetailsDialog = ({ member, isOpen, onClose, onEdit }) => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">العمر:</span>
-                      <span className="font-medium">{member.age || 'غير محدد'} سنة</span>
+                      <span className="font-medium">غير محدد</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">الجنس:</span>
@@ -108,11 +97,11 @@ const MemberDetailsDialog = ({ member, isOpen, onClose, onEdit }) => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">العنوان:</span>
-                      <span className="font-medium">{member.address || 'غير محدد'}</span>
+                      <span className="font-medium">{member.city || 'غير محدد'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">جهة اتصال الطوارئ:</span>
-                      <span className="font-medium">{member.emergencyContact || 'غير محدد'}</span>
+                      <span className="font-medium">غير محدد</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -127,15 +116,19 @@ const MemberDetailsDialog = ({ member, isOpen, onClose, onEdit }) => {
                   <CardContent className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">الخطة الحالية:</span>
-                      <span className="font-medium">{member.plan}</span>
+                      <span className="font-medium">{member.packageName || 'لا توجد خطة'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">تاريخ الانضمام:</span>
-                      <span className="font-medium">{member.joinDate}</span>
+                      <span className="font-medium">
+                        {member.createdAt ? new Date(member.createdAt).toLocaleDateString('ar-LY') : 'غير محدد'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">تاريخ الانتهاء:</span>
-                      <span className="font-medium">{member.expiryDate}</span>
+                      <span className="font-medium">
+                        {member.subscriptionEndDate ? new Date(member.subscriptionEndDate).toLocaleDateString('ar-LY') : 'غير محدد'}
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
@@ -149,28 +142,39 @@ const MemberDetailsDialog = ({ member, isOpen, onClose, onEdit }) => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {subscriptionHistory.map((sub) => (
-                      <div key={sub.id} className="border rounded-lg p-4">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-right">
-                          <div>
-                            <span className="text-sm text-muted-foreground">الخطة</span>
-                            <p className="font-medium">{sub.plan}</p>
-                          </div>
-                          <div>
-                            <span className="text-sm text-muted-foreground">المدة</span>
-                            <p className="font-medium">{sub.startDate} - {sub.endDate}</p>
-                          </div>
-                          <div>
-                            <span className="text-sm text-muted-foreground">المبلغ</span>
-                            <p className="font-medium">{sub.amount}</p>
-                          </div>
-                          <div>
-                            <span className="text-sm text-muted-foreground">الحالة</span>
-                            <Badge className="bg-green-100 text-green-800">{sub.status}</Badge>
+                    {member.subscriptions && member.subscriptions.length > 0 ? (
+                      member.subscriptions.map((sub) => (
+                        <div key={sub.id} className="border rounded-lg p-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-right">
+                            <div>
+                              <span className="text-sm text-muted-foreground">الخطة</span>
+                              <p className="font-medium">{sub.packageName}</p>
+                            </div>
+                            <div>
+                              <span className="text-sm text-muted-foreground">المدة</span>
+                              <p className="font-medium">
+                                {sub.startDate ? new Date(sub.startDate).toLocaleDateString('ar-LY') : 'غير محدد'} - 
+                                {sub.endDate ? new Date(sub.endDate).toLocaleDateString('ar-LY') : 'غير محدد'}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-sm text-muted-foreground">المبلغ</span>
+                              <p className="font-medium">{sub.packagePrice || 'غير محدد'} د.ل</p>
+                            </div>
+                            <div>
+                              <span className="text-sm text-muted-foreground">الحالة</span>
+                              <Badge className={sub.status === 'active' ? 'bg-green-100 text-green-800' : 
+                                              sub.status === 'paused' ? 'bg-yellow-100 text-yellow-800' : 
+                                              'bg-red-100 text-red-800'}>
+                                {sub.status === 'active' ? 'نشط' : sub.status === 'paused' ? 'متوقف' : 'منتهي'}
+                              </Badge>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <p className="text-center text-muted-foreground">لا توجد اشتراكات سابقة</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -182,29 +186,8 @@ const MemberDetailsDialog = ({ member, isOpen, onClose, onEdit }) => {
                   <CardTitle className="text-right">تاريخ الإيقاف</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {pauseHistory.map((pause) => (
-                      <div key={pause.id} className="border rounded-lg p-4">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-right">
-                          <div>
-                            <span className="text-sm text-muted-foreground">السبب</span>
-                            <p className="font-medium">{pause.reason}</p>
-                          </div>
-                          <div>
-                            <span className="text-sm text-muted-foreground">من - إلى</span>
-                            <p className="font-medium">{pause.startDate} - {pause.endDate}</p>
-                          </div>
-                          <div>
-                            <span className="text-sm text-muted-foreground">المدة</span>
-                            <p className="font-medium">{pause.duration}</p>
-                          </div>
-                          <div>
-                            <span className="text-sm text-muted-foreground">الحالة</span>
-                            <Badge className="bg-green-100 text-green-800">{pause.status}</Badge>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="text-center text-muted-foreground">
+                    <p>لا توجد بيانات إيقاف متاحة</p>
                   </div>
                 </CardContent>
               </Card>
@@ -216,28 +199,8 @@ const MemberDetailsDialog = ({ member, isOpen, onClose, onEdit }) => {
                   <CardTitle className="text-right">النشاط الأخير</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-4 space-x-reverse">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <div className="text-right">
-                        <p className="font-medium">دخول إلى الصالة</p>
-                        <p className="text-sm text-muted-foreground">اليوم - 10:30 صباحاً</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4 space-x-reverse">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <div className="text-right">
-                        <p className="font-medium">تجديد الاشتراك</p>
-                        <p className="text-sm text-muted-foreground">أمس - 2:15 مساءً</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4 space-x-reverse">
-                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                      <div className="text-right">
-                        <p className="font-medium">تحديث المعلومات الشخصية</p>
-                        <p className="text-sm text-muted-foreground">منذ 3 أيام - 4:45 مساءً</p>
-                      </div>
-                    </div>
+                  <div className="text-center text-muted-foreground">
+                    <p>لا توجد بيانات نشاط متاحة</p>
                   </div>
                 </CardContent>
               </Card>

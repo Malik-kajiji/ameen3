@@ -10,12 +10,12 @@ export default function Login() {
   const [error, setError] = useState("");
   const navigate = useNavigate()
   const user = useSelector(state => state.userController.user)
-  const { ownerLogin } = useLogin()
+  const { login } = useLogin()
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const result = await ownerLogin(username, password);
+      const result = await login(username, password);
     } catch (err) {
       setError("اسم المستخدم أو كلمة المرور غير صحيحة");
     }

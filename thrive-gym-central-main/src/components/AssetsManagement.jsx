@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,10 +9,12 @@ import {
   TableHeader as THead,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Filter, Plus, Wrench, AlertTriangle, Calendar, Settings } from 'lucide-react';
-import AssetMaintenanceDialog from './AssetMaintenanceDialog';
+import { Search, Filter, Plus, Wrench, Settings } from 'lucide-react';
+import SimpleMaintenanceDialog from './SimpleMaintenanceDialog';
+import AssetStatusDialog from './AssetStatusDialog';
 import AddAssetDialog from './AddAssetDialog';
 import { motion, AnimatePresence } from 'framer-motion';
+import useAssets from '@/hooks/useAssets';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 30 },
@@ -39,37 +41,33 @@ const AssetsManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isAddAssetDialogOpen, setIsAddAssetDialogOpen] = useState(false);
 
-  const [assets, setAssets] = useState([
-    {
-      id: 'AST-001',
-      name: 'جهاز الجري #1',
-      category: 'أجهزة كارديو',
-      status: 'جيد',
-      lastMaintenance: '2024-01-10',
-      nextMaintenance: '2024-04-10',
-      value: '2,500 د.ل'
-    },
-    {
-      id: 'AST-002',
-      name: 'جهاز الضغط',
-      category: 'أجهزة القوة',
-      status: 'يحتاج صيانة',
-      lastMaintenance: '2023-11-15',
-      nextMaintenance: '2024-02-15',
-      value: '1,800 د.ل'
-    },
-    {
-      id: 'AST-003',
-      name: 'مجموعة الأثقال',
-      category: 'أوزان حرة',
-      status: 'ممتاز',
-      lastMaintenance: '2024-01-05',
-      nextMaintenance: '2024-07-05',
-      value: '800 د.ل'
-    }
-  ]);
+  // Use the assets hook
+  const {
+    assets,
+    loading,
+    error,
+    fetchAssets,
+    createAsset,
+    updateAsset,
+    deleteAsset,
+    addMaintenanceLog
+  } = useAssets();
+
+  // Format assets for display
+  const formattedAssets = assets.map((asset, index) => ({
+    index: index + 1,
+    id: asset.id,
+    name: asset.name,
+    category: asset.category || 'غير محدد',
+    status: asset.status || 'جيد',
+    purchaseDate: asset.purchaseDate || 'غير محدد',
+    lastMaintenance: asset.lastMaintenance || 'غير محدد',
+    totalMaintenanceCost: asset.totalMaintenanceCost || 0,
+    value: `${asset.price?.toLocaleString() || 0} د.ل`
+  }));
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -86,37 +84,87 @@ const AssetsManagement = () => {
     }
   };
 
-  const filteredAssets = assets.filter(asset =>
-    asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    asset.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    asset.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleScheduleMaintenance = (asset) => {
-    setSelectedAsset(asset);
-    setIsMaintenanceDialogOpen(true);
-  };
-
-  const handleSaveMaintenance = (maintenance) => {
-    console.log('تم جدولة الصيانة:', maintenance);
-    setIsMaintenanceDialogOpen(false);
-  };
-
-  const handleAddAsset = (newAsset) => {
-    setAssets([...assets, newAsset]);
-    console.log('تم إضافة أصل جديد:', newAsset);
-  };
-
-  const getStatusCounts = () => {
-    return {
-      total: assets.length,
-      excellent: assets.filter(a => a.status === 'ممتاز').length,
-      good: assets.filter(a => a.status === 'جيد').length,
-      needsMaintenance: assets.filter(a => a.status === 'يحتاج صيانة').length,
-      damaged: assets.filter(a => a.status === 'تالف').length
+  
+    const filteredAssets = formattedAssets.filter(asset =>
+      asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      asset.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      asset.index.toString().includes(searchTerm)
+    );
+  
+    const handleUpdateAssetStatus = (asset) => {
+      setSelectedAsset(asset);
+      setIsStatusDialogOpen(true);
     };
-  };
 
+    const handleSaveAssetStatus = async (statusData) => {
+      try {
+        await updateAsset(selectedAsset.id, statusData);
+        setIsStatusDialogOpen(false);
+        fetchAssets(); // Refresh the assets list
+      } catch (err) {
+        console.error('Error updating asset status:', err);
+      }
+    };
+  
+    const handleScheduleMaintenance = (asset) => {
+      setSelectedAsset(asset);
+      setIsMaintenanceDialogOpen(true);
+    };
+  
+    const handleSaveMaintenance = async (maintenance) => {
+      try {
+        // Add maintenance log
+        await addMaintenanceLog(selectedAsset.id, {
+          maintenanceType: 'صيانة عادية',
+          description: 'صيانة دورية',
+          maintenanceDate: maintenance.maintenanceDate,
+          cost: maintenance.cost
+        });
+        
+        // Update the asset's last maintenance date
+        await updateAsset(selectedAsset.id, {
+          lastMaintenance: maintenance.maintenanceDate
+        });
+        
+        setIsMaintenanceDialogOpen(false);
+        fetchAssets(); // Refresh the assets list
+      } catch (err) {
+        console.error('Error saving maintenance:', err);
+      }
+    };
+  
+    const handleAddAsset = async (newAsset) => {
+      try {
+        // Map the newAsset data to match the API expected format
+        const assetData = {
+          name: newAsset.name,
+          category: newAsset.category,
+          price: newAsset.price,
+          purchaseDate: newAsset.purchaseDate || new Date(),
+          warrantyExpire: newAsset.warranty || new Date(),
+          status: newAsset.status,
+          location: newAsset.location,
+          supplier: newAsset.supplier
+        };
+        
+        await createAsset(assetData);
+        console.log('تم إضافة أصل جديد:', newAsset);
+        setIsAddAssetDialogOpen(false);
+      } catch (err) {
+        console.error('Error adding asset:', err);
+        alert('حدث خطأ أثناء إضافة الأصل: ' + (err.message || 'يرجى المحاولة مرة أخرى'));
+      }
+    };
+  
+    const getStatusCounts = () => {
+      return {
+        total: formattedAssets.length,
+        excellent: formattedAssets.filter(a => a.status === 'ممتاز').length,
+        good: formattedAssets.filter(a => a.status === 'جيد').length,
+        needsMaintenance: formattedAssets.filter(a => a.status === 'يحتاج صيانة').length,
+        damaged: formattedAssets.filter(a => a.status === 'تالف').length
+      };
+    };
   const statusCounts = getStatusCounts();
 
   return (
@@ -187,6 +235,20 @@ const AssetsManagement = () => {
           ))}
         </motion.div>
 
+        {/* Loading and Error Handling */}
+        {loading && (
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        )}
+        
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <strong className="font-bold">خطأ! </strong>
+            <span className="block sm:inline">{error.message}</span>
+          </div>
+        )}
+
         <motion.div variants={fadeIn} initial="hidden" animate="show">
           <Card className="card-gradient shadow-md shadow-black/5">
             <CardHeader>
@@ -220,9 +282,10 @@ const AssetsManagement = () => {
                       <TableHead className="text-right">الاسم</TableHead>
                       <TableHead className="text-right">الفئة</TableHead>
                       <TableHead className="text-right">الحالة</TableHead>
+                      <TableHead className="text-right">تاريخ الشراء</TableHead>
                       <TableHead className="text-right">آخر صيانة</TableHead>
-                      <TableHead className="text-right">الصيانة التالية</TableHead>
                       <TableHead className="text-right">القيمة</TableHead>
+                      <TableHead className="text-right">إجمالي قيمة الصيانة</TableHead>
                       <TableHead className="text-right">الإجراءات</TableHead>
                     </TableRow>
                   </THead>
@@ -238,7 +301,7 @@ const AssetsManagement = () => {
                           custom={i}
                           className="bg-transparent"
                         >
-                          <TableCell className="font-medium text-right">{asset.id}</TableCell>
+                          <TableCell className="font-medium text-right">{asset.index}</TableCell>
                           <TableCell className="text-right">{asset.name}</TableCell>
                           <TableCell className="text-right">{asset.category}</TableCell>
                           <TableCell className="text-right">
@@ -246,24 +309,33 @@ const AssetsManagement = () => {
                               {asset.status}
                             </span>
                           </TableCell>
+                          <TableCell className="text-right">{asset.purchaseDate}</TableCell>
                           <TableCell className="text-right">{asset.lastMaintenance}</TableCell>
-                          <TableCell className="text-right">{asset.nextMaintenance}</TableCell>
                           <TableCell className="text-right">{asset.value}</TableCell>
+                          <TableCell className="text-right">{asset.totalMaintenanceCost} د.ل</TableCell>
                           <TableCell className="text-right">
                             <div className="flex gap-2 justify-end">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleScheduleMaintenance(asset)}
-                                title="جدولة صيانة"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateAssetStatus(asset);
+                                }}
+                                title="تحديث الحالة"
                               >
-                                <Calendar className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" title="صيانة">
-                                <Wrench className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" title="إعدادات">
                                 <Settings className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleScheduleMaintenance(asset);
+                                }}
+                                title="تسجيل صيانة"
+                              >
+                                <Wrench className="w-4 h-4" />
                               </Button>
                             </div>
                           </TableCell>
@@ -277,15 +349,29 @@ const AssetsManagement = () => {
           </Card>
         </motion.div>
 
-        <AssetMaintenanceDialog
-          asset={selectedAsset}
-          isOpen={isMaintenanceDialogOpen}
-          onClose={() => {
-            setIsMaintenanceDialogOpen(false);
-            setSelectedAsset(null);
-          }}
-          onSave={handleSaveMaintenance}
-        />
+        {selectedAsset && (
+          <>
+            <SimpleMaintenanceDialog
+              asset={selectedAsset}
+              isOpen={isMaintenanceDialogOpen}
+              onClose={() => {
+                setIsMaintenanceDialogOpen(false);
+                setSelectedAsset(null);
+              }}
+              onSave={handleSaveMaintenance}
+            />
+
+            <AssetStatusDialog
+              asset={selectedAsset}
+              isOpen={isStatusDialogOpen}
+              onClose={() => {
+                setIsStatusDialogOpen(false);
+                setSelectedAsset(null);
+              }}
+              onSave={handleSaveAssetStatus}
+            />
+          </>
+        )}
 
         <AddAssetDialog
           isOpen={isAddAssetDialogOpen}

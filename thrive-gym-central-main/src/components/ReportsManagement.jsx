@@ -1,115 +1,249 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useSelector } from 'react-redux';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Download, TrendingUp, Users, DollarSign, Calendar, BarChart3, PieChart, Plus, Eye, Edit, Pause, Play, Trash2 } from 'lucide-react';
+import { TrendingUp, Users, DollarSign, BarChart3 } from 'lucide-react';
 import CreateReportDialog from './CreateReportDialog';
 import { motion } from 'framer-motion';
+import useReports from '@/hooks/useReports';
+import { toast } from 'sonner';
 
 const ReportsManagement = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [reports, setReports] = useState([
-    {
-      id: 'RPT-001',
-      title: 'الملخص المالي الشهري',
-      type: 'financial',
-      status: 'مجدول',
-      lastGenerated: '2024-01-15',
-      schedule: {
-        enabled: true,
-        frequency: 'monthly',
-        nextRun: '2024-02-01'
-      }
-    },
-    {
-      id: 'RPT-002',
-      title: 'نشاط الأعضاء الأسبوعي',
-      type: 'membership',
-      status: 'نشط',
-      lastGenerated: '2024-01-20',
-      schedule: {
-        enabled: true,
-        frequency: 'weekly',
-        nextRun: '2024-01-22'
-      }
+  const [downloading, setDownloading] = useState({});
+  const [monthlyStats, setMonthlyStats] = useState({
+    monthlyAttendance: 0,
+    monthlyRevenue: 0,
+    newMembers: 0,
+    maintenanceCost: 0
+  });
+  const user = useSelector((state) => state.userController.user);
+
+  const {
+    reports,
+    loading,
+    error,
+    getReports,
+    createReport,
+    updateReport,
+    deleteReport,
+    generateReport,
+    toggleSchedule
+  } = useReports();
+
+  const handleDownload = async (report, period, format) => {
+    if (!user?.token) {
+      toast.error('يرجى تسجيل الدخول مرة أخرى');
+      return;
     }
-  ]);
+
+    const downloadKey = `${report.type}-${format}`;
+    setDownloading(prev => ({ ...prev, [downloadKey]: true }));
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_BASE_URL}/reports/download/${report.type}/${period}/${format}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${user?.token}`
+          },
+          responseType: 'blob'
+        }
+      );
+
+      // Check if the response is JSON (error message)
+      const contentType = response.headers['content-type'];
+      if (contentType.includes('application/json')) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const errorData = JSON.parse(reader.result);
+          toast.error(errorData.message || 'حدث خطأ أثناء تحميل التقرير');
+        };
+        reader.readAsText(response.data);
+        return;
+      }
+
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `${report.title}-${period}.${format === 'word' ? 'docx' : format === 'excel' ? 'xlsx' : 'pdf'}`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename=(.+)/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      // Create blob URL and trigger download
+      const blob = new Blob([response.data], { type: contentType });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      link.remove();
+    } catch (err) {
+      console.error('Download error:', err.response?.data || err);
+      if (err.response?.status === 401) {
+        toast.error('يرجى تسجيل الدخول مرة أخرى');
+      } else {
+        toast.error(err.response?.data?.message || 'حدث خطأ أثناء تحميل التقرير');
+      }
+    } finally {
+      setDownloading(prev => ({ ...prev, [downloadKey]: false }));
+    }
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user?.token) {
+        return;
+      }
+      try {
+        await getReports();
+        const res = await axios.get(
+          `${import.meta.env.VITE_API_BASE_URL}/dashboard-stats/monthly`,
+          {
+            headers: {
+              Authorization: `Bearer ${user?.token}`,
+            },
+          }
+        );
+        setMonthlyStats(res.data);
+      } catch (err) {
+        toast.error('حدث خطأ أثناء جلب البيانات');
+      }
+    };
+
+    if (user?.token) {
+      fetchData();
+    }
+  }, [user?.token]);
 
   const reportTypes = [
     {
       title: 'تقرير العضوية',
-      description: 'تحليل مفصل لأنشطة الأعضاء والاتجاهات',
+      description: 'تقرير عن الأعضاء الجدد والاشتراكات وطلبات الإيقاف',
       icon: Users,
       color: 'text-blue-500',
-      lastGenerated: '2024-01-15'
+      type: 'membership'
     },
     {
       title: 'التقرير المالي',
-      description: 'تحليل الإيرادات والمصاريف والأرباح',
+      description: 'تقرير شامل عن جميع العمليات المالية',
       icon: DollarSign,
       color: 'text-green-500',
-      lastGenerated: '2024-01-14'
+      type: 'financial'
     },
     {
-      title: 'استخدام المعدات',
-      description: 'تقارير الاستفادة من المعدات والصيانة',
+      title: 'تقرير المعدات',
+      description: 'تقرير عن تفاصيل المعدات وحالتها',
       icon: BarChart3,
       color: 'text-orange-500',
-      lastGenerated: '2024-01-13'
+      type: 'assets'
     },
     {
-      title: 'أداء الموظفين',
-      description: 'تقارير إنتاجية الموظفين والحضور',
+      title: 'تقرير الموظفين',
+      description: 'تقرير عن بيانات الموظفين',
       icon: TrendingUp,
       color: 'text-purple-500',
-      lastGenerated: '2024-01-12'
+      type: 'employees'
     }
   ];
 
+  const handleCreateReport = async (newReport) => {
+    try {
+      await createReport(newReport);
+      setIsCreateDialogOpen(false);
+      toast.success('تم إنشاء التقرير بنجاح');
+    } catch (err) {
+      toast.error('حدث خطأ أثناء إنشاء التقرير');
+    }
+  };
+
+  const handleViewReport = async (reportId) => {
+    try {
+      const result = await generateReport(reportId);
+      // Here you would handle displaying the report data
+      console.log('بيانات التقرير:', result);
+    } catch (err) {
+      toast.error('حدث خطأ أثناء عرض التقرير');
+    }
+  };
+
+  const handleEditReport = async (reportId, updateData) => {
+    try {
+      await updateReport(reportId, updateData);
+      toast.success('تم تحديث التقرير بنجاح');
+    } catch (err) {
+      toast.error('حدث خطأ أثناء تحديث التقرير');
+    }
+  };
+
+  const handleToggleSchedule = async (reportId) => {
+    try {
+      const result = await toggleSchedule(reportId);
+      toast.success(`تم ${result.report.schedule.enabled ? 'تفعيل' : 'تعطيل'} جدولة التقرير`);
+    } catch (err) {
+      toast.error('حدث خطأ أثناء تحديث جدولة التقرير');
+    }
+  };
+
+  const handleDeleteReport = async (reportId) => {
+    try {
+      await deleteReport(reportId);
+      toast.success('تم حذف التقرير بنجاح');
+    } catch (err) {
+      toast.error('حدث خطأ أثناء حذف التقرير');
+    }
+  };
+
+  const handleGenerateReport = async (reportType) => {
+    try {
+      // Create a new report of the selected type
+      const newReport = {
+        title: `تقرير ${reportType} جديد`,
+        type: reportType,
+        dateRange: {
+          from: new Date(),
+          to: new Date()
+        }
+      };
+      const result = await createReport(newReport);
+      await generateReport(result.report._id);
+      toast.success('تم إنشاء التقرير بنجاح');
+    } catch (err) {
+      toast.error('حدث خطأ أثناء إنشاء التقرير');
+    }
+  };
+
   const quickStats = [
-    { label: 'إجمالي التقارير المُنشأة', value: '247', change: '+12%', trend: 'up' },
-    { label: 'الأعضاء النشطون هذا الشهر', value: '1,247', change: '+8%', trend: 'up' },
-    { label: 'الإيرادات هذا الشهر', value: '45,230 د.ل', change: '+15%', trend: 'up' },
-    { label: 'استخدام المعدات', value: '87%', change: '+3%', trend: 'up' }
+    { label: 'الحضور لهذا الشهر', value: monthlyStats.monthlyAttendance.toString() },
+    { label: 'الايرادات لهذا الشهر', value: `${monthlyStats.monthlyRevenue.toLocaleString()} د.ل` },
+    { label: 'الأعضاء الجدد لهذا الشهر', value: monthlyStats.newMembers.toString() },
+    { label: 'إجمالي المصروف على الصيانة', value: `${monthlyStats.maintenanceCost.toLocaleString()} د.ل` }
   ];
-
-  const handleCreateReport = (newReport) => {
-    setReports([...reports, newReport]);
-    console.log('تم إنشاء تقرير جديد:', newReport);
-  };
-
-  const handleViewReport = (reportId) => {
-    console.log('عرض التقرير:', reportId);
-  };
-
-  const handleEditReport = (reportId) => {
-    console.log('تعديل التقرير:', reportId);
-  };
-
-  const handleToggleSchedule = (reportId) => {
-    setReports(reports.map(report =>
-      report.id === reportId
-        ? { ...report, schedule: { ...report.schedule, enabled: !report.schedule.enabled } }
-        : report
-    ));
-  };
-
-  const handleDeleteReport = (reportId) => {
-    setReports(reports.filter(report => report.id !== reportId));
-  };
-
-  const handleGenerateReport = (reportType) => {
-    console.log('إنشاء تقرير:', reportType);
-  };
 
   const fade = {
     hidden: { opacity: 0, y: 30 },
     show: { opacity: 1, y: 0, transition: { duration: 0.38, type: 'spring' } },
   };
+
   const staggerCards = (i) => ({
     hidden: { opacity: 0, y: 18 },
     show: { opacity: 1, y: 0, transition: { delay: i * 0.07 + 0.07, duration: 0.22, type: 'spring' } }
   });
+
+  if (loading) {
+    return <div>جاري التحميل...</div>;
+  }
+
+  if (error) {
+    return <div>حدث خطأ: {error}</div>;
+  }
 
   return (
     <motion.div className="space-y-6 phone-space-y-4 rtl" variants={fade} initial="hidden" animate="show">
@@ -118,19 +252,6 @@ const ReportsManagement = () => {
           <div className="text-right">
             <h2 className="text-3xl phone-text-xl font-bold tracking-tight">إدارة التقارير</h2>
             <p className="text-muted-foreground phone-text-sm">إنشاء وإدارة تقارير ذكاء الأعمال</p>
-          </div>
-          <div className="flex flex-col phone:flex-col sm:flex-row gap-2 phone-gap-2 w-full phone:w-full sm:w-auto">
-            <Button variant="outline" className="phone-text-sm phone-p-2">
-              <Calendar className="w-4 h-4 phone-w-3 phone-h-3 ml-2" />
-              جدولة تقرير
-            </Button>
-            <Button
-              className="btn-gradient phone-text-sm phone-p-2"
-              onClick={() => setIsCreateDialogOpen(true)}
-            >
-              <Plus className="w-4 h-4 phone-w-3 phone-h-3 ml-2" />
-              إنشاء تقرير جديد
-            </Button>
           </div>
         </div>
       </motion.div>
@@ -142,10 +263,6 @@ const ReportsManagement = () => {
               <CardContent className="p-6 phone-p-4 text-right">
                 <div className="text-2xl phone-text-lg font-bold text-primary">{stat.value}</div>
                 <p className="text-xs phone-text-xs text-muted-foreground">{stat.label}</p>
-                <div className="flex items-center mt-2 justify-end">
-                  <span className="text-sm phone-text-xs text-green-500">{stat.change}</span>
-                  <TrendingUp className="w-4 h-4 phone-w-3 phone-h-3 text-green-500 mr-1" />
-                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -188,179 +305,62 @@ const ReportsManagement = () => {
                       <p className="text-sm phone-text-xs text-muted-foreground">{report.description}</p>
                     </div>
                   </div>
-                  <div className="flex gap-1 flex-col">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="phone-p-1 flex-shrink-0"
-                      onClick={() => handleViewReport(report.title)}
-                    >
-                      <Eye className="w-4 h-4 phone-w-3 phone-h-3" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="phone-p-1 flex-shrink-0"
-                      onClick={() => handleGenerateReport(report.title)}
-                    >
-                      <Download className="w-4 h-4 phone-w-3 phone-h-3" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="phone-p-4">
-                <div className="flex flex-col phone:flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                  <span className="text-sm phone-text-xs text-muted-foreground">
-                    آخر إنشاء: {report.lastGenerated}
-                  </span>
-                  <div className="flex gap-2 w-full phone:w-full sm:w-auto">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="phone-text-xs phone-p-1 flex-1 phone:flex-1 sm:flex-none"
-                      onClick={() => handleViewReport(report.title)}
-                    >
-                      عرض
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-primary phone-text-xs phone-p-1 flex-1 phone:flex-1 sm:flex-none"
-                      onClick={() => handleGenerateReport(report.title)}
-                    >
-                      إنشاء
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      <motion.div variants={fade}>
-        <Card className="card-gradient">
-          <CardHeader className="phone-p-4">
-            <div className="flex justify-between items-center">
-              <CardTitle className="phone-text-base text-right">التقارير المجدولة</CardTitle>
-              <Button size="sm" variant="outline" onClick={() => setIsCreateDialogOpen(true)}>
-                <Plus className="w-4 h-4 ml-2" />
-                إضافة جدولة
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="phone-p-4">
-            <div className="space-y-4 phone-space-y-3">
-              {reports.map((report, i) => (
-                <motion.div key={report.id} variants={staggerCards(i)} initial="hidden" animate="show">
-                  <div className="flex flex-col phone:flex-col sm:flex-row items-start sm:items-center justify-between p-4 phone-p-3 bg-muted/50 rounded-lg gap-3 phone-gap-2">
-                    <div className="flex items-center space-x-3 space-x-reverse phone-space-x-2 flex-1 min-w-0">
-                      <FileText className="w-5 h-5 phone-w-4 phone-h-4 text-primary flex-shrink-0" />
-                      <div className="min-w-0 text-right">
-                        <p className="font-medium phone-text-sm truncate">{report.title}</p>
-                        <p className="text-sm phone-text-xs text-muted-foreground">
-                          {report.schedule.enabled ? `التشغيل التالي: ${report.schedule.nextRun}` : 'معطل'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 w-full phone:w-full sm:w-auto">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="phone-text-xs phone-p-1 flex-1 phone:flex-1 sm:flex-none"
-                        onClick={() => handleViewReport(report.id)}
-                      >
-                        <Eye className="w-4 h-4 ml-1" />
-                        عرض
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="phone-text-xs phone-p-1 flex-1 phone:flex-1 sm:flex-none"
-                        onClick={() => handleEditReport(report.id)}
-                      >
-                        <Edit className="w-4 h-4 ml-1" />
-                        تعديل
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="phone-text-xs phone-p-1 flex-1 phone:flex-1 sm:flex-none"
-                        onClick={() => handleToggleSchedule(report.id)}
-                      >
-                        {report.schedule.enabled ?
-                          <><Pause className="w-4 h-4 ml-1" />إيقاف</> :
-                          <><Play className="w-4 h-4 ml-1" />تشغيل</>
-                        }
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-500 phone-text-xs phone-p-1 flex-1 phone:flex-1 sm:flex-none"
-                        onClick={() => handleDeleteReport(report.id)}
-                      >
-                        <Trash2 className="w-4 h-4 ml-1" />
-                        حذف
-                      </Button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <motion.div className="grid gap-6 phone-gap-4 grid-cols-1 md:grid-cols-2" initial="hidden" animate="show">
-        {[
-          {
-            title: 'نمو العضوية',
-            icon: <PieChart className="w-5 h-5 phone-w-4 phone-h-4 text-muted-foreground" />,
-            chart: <PieChart className="w-12 h-12 mx-auto mb-2 opacity-50" />,
-            desc: 'رسم بياني لنمو العضوية'
-          },
-          {
-            title: 'تحليلات الإيرادات',
-            icon: <BarChart3 className="w-5 h-5 phone-w-4 phone-h-4 text-muted-foreground" />,
-            chart: <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />,
-            desc: 'رسم بياني لتحليلات الإيرادات'
-          }
-        ].map((section, i) => (
-          <motion.div key={section.title} variants={staggerCards(i)} initial="hidden" animate="show">
-            <Card className="card-gradient">
-              <CardHeader className="phone-p-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="phone-text-base text-right">{section.title}</CardTitle>
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="sm">
-                      <Download className="w-4 h-4" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="phone-p-1 relative"
+                      disabled={downloading[`${report.type}-word`]}
+                      onClick={async () => {
+                        handleDownload(report, selectedPeriod, 'word')
+                      }}
+                    >
+                      {downloading[`${report.type}-word`] ? (
+                        <span className="animate-spin">⏳</span>
+                      ) : (
+                        'Word'
+                      )}
                     </Button>
-                    {section.icon}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="phone-p-1 relative"
+                      disabled={downloading[`${report.type}-excel`]}
+                      onClick={async () => {
+                        handleDownload(report, selectedPeriod, 'excel')
+                      }}
+                    >
+                      {downloading[`${report.type}-excel`] ? (
+                        <span className="animate-spin">⏳</span>
+                      ) : (
+                        'Excel'
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="phone-p-1 relative"
+                      disabled={downloading[`${report.type}-pdf`]}
+                      onClick={async () => {
+                        handleDownload(report, selectedPeriod, 'pdf')
+                      }}
+                    >
+                      {downloading[`${report.type}-pdf`] ? (
+                        <span className="animate-spin">⏳</span>
+                      ) : (
+                        'PDF'
+                      )}
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="phone-p-4">
-                <div className="h-64 phone-h-32 flex items-center justify-center text-muted-foreground border-2 border-dashed rounded-lg">
-                  <div className="text-center">
-                    {section.chart}
-                    <span className="phone-text-sm text-center">{section.desc}</span>
-                    <br />
-                    <Button variant="ghost" size="sm" className="mt-2">
-                      عرض البيانات التفاعلية
-                    </Button>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </motion.div>
         ))}
       </motion.div>
 
-      <CreateReportDialog
-        isOpen={isCreateDialogOpen}
-        onClose={() => setIsCreateDialogOpen(false)}
-        onSave={handleCreateReport}
-      />
     </motion.div>
   );
 };

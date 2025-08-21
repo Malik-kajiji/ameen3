@@ -1,43 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Bell, Send, Users, Mail, MessageSquare, Plus } from 'lucide-react';
 import CreateNotificationDialog from './CreateNotificationDialog';
 import { motion, AnimatePresence } from 'framer-motion';
+import useNotifications from '@/hooks/useNotifications';
 
 const NotificationsManagement = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [showCreateNotification, setShowCreateNotification] = useState(false);
-  const [notifications, setNotifications] = useState([
-    {
-      id: 'NOT-001',
-      title: 'تذكير انتهاء العضوية',
-      message: 'عضويتك تنتهي خلال 3 أيام',
-      recipient: 'أحمد علي',
-      type: 'تلقائي',
-      status: 'مُرسل',
-      date: '2024-01-15 10:30'
-    },
-    {
-      id: 'NOT-002',
-      title: 'عرض جديد متاح',
-      message: 'خصم 20% على الاشتراك السنوي',
-      recipient: 'جميع الأعضاء',
-      type: 'يدوي',
-      status: 'مجدول',
-      date: '2024-01-16 09:00'
-    },
-    {
-      id: 'NOT-003',
-      title: 'طلب الإيقاف موافق عليه',
-      message: 'تم الموافقة على طلب إيقاف عضويتك',
-      recipient: 'سارة حسن',
-      type: 'تلقائي',
-      status: 'مُرسل',
-      date: '2024-01-14 14:20'
-    }
-  ]);
+  const { notifications, stats, loading, createNotification } = useNotifications();
 
   const tabs = [
     { key: 'all', label: 'الكل' },
@@ -46,9 +19,15 @@ const NotificationsManagement = () => {
     { key: 'failed', label: 'فاشل' }
   ];
 
-  const handleCreateNotification = (newNotification) => {
-    setNotifications(prev => [newNotification, ...prev]);
-    console.log('إنشاء إشعار جديد:', newNotification);
+  const handleCreateNotification = async (newNotification) => {
+    try {
+      await createNotification(newNotification);
+      setShowCreateNotification(false);
+      // Refresh stats after creating a new notification
+      await fetchStats();
+    } catch (error) {
+      console.error('Error creating notification:', error);
+    }
   };
 
   const handleQuickAction = (actionType) => {
@@ -103,8 +82,8 @@ const NotificationsManagement = () => {
             icon: <Send className="w-8 h-8 text-primary" />,
           },
           {
-            value: '89%',
-            label: 'معدل القراءة',
+            value: `${stats.deliveryRate}%`,
+            label: 'معدل الوصول',
             color: 'text-green-500',
             icon: <Mail className="w-8 h-8 text-green-500" />,
           },
@@ -115,7 +94,7 @@ const NotificationsManagement = () => {
             icon: <Bell className="w-8 h-8 text-yellow-500" />,
           },
           {
-            value: 45,
+            value: stats.weeklyCount || 0,
             label: 'هذا الأسبوع',
             color: 'text-blue-500',
             icon: <MessageSquare className="w-8 h-8 text-blue-500" />,

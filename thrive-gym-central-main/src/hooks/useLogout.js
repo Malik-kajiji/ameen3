@@ -1,20 +1,19 @@
-import React from 'react'
 import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { userActions } from '../redux/userState';
-import { alertActions } from '../redux/AlertController';
-// import Store from 'electron-store'
 
-const useLogout = () => {
-    // const userStore = new Store()
-    const dispatch = useDispatch()
+export const useLogout = () => {
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
+
     const logout = () => {
-        localStorage.clear()
-        // userStore.set('user',null)
-        dispatch(userActions.clearData({}))
-        dispatch(alertActions.showAlert({msg:'تم تسجيل الخروج بنجاح',type:'success'}));
-    }
+        // Clear user from redux store and localStorage
+        dispatch(userActions.clearData());
+        localStorage.removeItem('user');
+        
+        // Navigate to login page
+        navigate('/login');
+    };
 
-    return {logout}
-}
-
-export default useLogout
+    return { logout };
+};

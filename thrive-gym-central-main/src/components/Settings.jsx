@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card, CardContent, CardHeader, CardTitle,
 } from '@/components/ui/card';
@@ -28,15 +28,13 @@ import {
   Clock,
   DollarSign,
   Save,
-  Download,
-  Upload,
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import useSettings from '@/hooks/useSettings';
 
 const Settings = () => {
-  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('general');
-
+  const { settings, loading, updateSettings } = useSettings();
+  
   const [generalSettings, setGeneralSettings] = useState({
     gymName: 'صالة فينيكس للياقة البدنية',
     gymNameEn: 'Phoenix Fitness Gym',
@@ -50,7 +48,6 @@ const Settings = () => {
     timezone: 'Africa/Tripoli',
   });
 
-
   const [membershipSettings, setMembershipSettings] = useState({
     autoRenewal: true,
     gracePeriod: 7,
@@ -59,7 +56,6 @@ const Settings = () => {
     memberIdPrefix: 'GM',
     defaultPlan: 'شهري',
   });
-
 
   const [notificationSettings, setNotificationSettings] = useState({
     emailNotifications: true,
@@ -70,7 +66,6 @@ const Settings = () => {
     newMemberWelcome: true,
   });
 
-
   const [securitySettings, setSecuritySettings] = useState({
     twoFactorAuth: false,
     sessionTimeout: 30,
@@ -78,7 +73,6 @@ const Settings = () => {
     backupFrequency: 'يومي',
     auditLog: true,
   });
-
 
   const [systemSettings, setSystemSettings] = useState({
     language: 'ar',
@@ -89,46 +83,48 @@ const Settings = () => {
     debugMode: false,
   });
 
-  const handleSaveSettings = (category) => {
-    toast({
-      title: 'تم الحفظ',
-      description: `تم حفظ إعدادات ${category} بنجاح.`,
-    });
+  useEffect(() => {
+    if (settings) {
+      setGeneralSettings(prev => ({ ...prev, ...settings.general }));
+      setMembershipSettings(prev => ({ ...prev, ...settings.membership }));
+      setNotificationSettings(prev => ({ ...prev, ...settings.notifications }));
+      setSecuritySettings(prev => ({ ...prev, ...settings.security }));
+      setSystemSettings(prev => ({ ...prev, ...settings.system }));
+    }
+  }, [settings]);
+
+  const handleSaveSettings = async (category) => {
+    let data;
+    switch (category) {
+      case 'بيانات الصالة':
+        data = await updateSettings('general', generalSettings);
+        break;
+      case 'العضوية':
+        data = await updateSettings('membership', membershipSettings);
+        break;
+      case 'الإشعارات':
+        data = await updateSettings('notifications', notificationSettings);
+        break;
+      case 'الأمان':
+        data = await updateSettings('security', securitySettings);
+        break;
+      case 'النظام':
+        data = await updateSettings('system', systemSettings);
+        break;
+    }
   };
 
-  const handleExportSettings = () => {
-    toast({
-      title: 'تم تصدير الإعدادات',
-      description: 'تم حفظ نسخة من جميع الإعدادات.',
-    });
-  };
-
-  const handleImportSettings = () => {
-    toast({
-      title: 'تم الاستيراد',
-      description: 'تم استيراد جميع الإعدادات بنجاح.',
-    });
-  };
+  if (loading || !settings) {
+    return <div>جاري التحميل...</div>;
+  }
 
   return (
 
     <div className="space-y-6" dir="rtl">
 
-      <div className="flex flex-row-reverse justify-between items-center">
-        <div className="text-right">
-          <h2 className="text-3xl font-bold tracking-tight">إعدادات النظام</h2>
-          <p className="text-muted-foreground">تحكم كامل في إعدادات وإدارة صالة فينيكس</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportSettings} className="flex-row-reverse">
-            <Download className="w-4 h-4 ms-2" />
-            تصدير الإعدادات
-          </Button>
-          <Button variant="outline" onClick={handleImportSettings} className="flex-row-reverse">
-            <Upload className="w-4 h-4 ms-2" />
-            استيراد الإعدادات
-          </Button>
-        </div>
+      <div className="text-right">
+        <h2 className="text-3xl font-bold tracking-tight">إعدادات النظام</h2>
+        <p className="text-muted-foreground">تحكم كامل في إعدادات وإدارة صالة فينيكس</p>
       </div>
 
 

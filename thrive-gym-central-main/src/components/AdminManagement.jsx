@@ -1,35 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Filter, Plus, Edit, Trash2, Shield, Key, UserCheck, AlertTriangle } from 'lucide-react';
+import { Search, Filter, Plus, Edit, Trash2, Shield, UserCheck } from 'lucide-react';
+import { useAdmin } from '@/hooks/useAdmin';
+import AddAdminDialog from './AddAdminDialog';
 
 const AdminManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('admins');
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const { admins, getAdmins, createAdmin, updateAdmin, deleteAdmin } = useAdmin();
 
-  const adminUsers = [
-    {
-      id: 'ADM-001',
-      name: 'أحمد حسن',
-      email: 'ahmed@powerfit.ly',
-      role: 'مدير عام',
-      permissions: ['الكل'],
-      lastLogin: '2024-01-20 09:30',
-      status: 'نشط',
-      createdDate: '2024-01-01'
-    },
-    {
-      id: 'ADM-003',
-      name: 'عمر سالم',
-      email: 'omar.support@powerfit.ly',
-      role: 'دعم فني',
-      permissions: ['الأعضاء', 'الممتلكات'],
-      lastLogin: '2024-01-18 14:20',
-      status: 'غير نشط',
-      createdDate: '2024-01-15'
-    }
-  ];
+  useEffect(() => {
+    getAdmins();
+  }, []);
 
   const systemLogs = [
     {
@@ -97,20 +82,20 @@ const AdminManagement = () => {
           <h2 className="text-3xl font-bold tracking-tight">إدارة النظام والمشرفين</h2>
           <p className="text-muted-foreground">إدارة مستخدمي النظام والأمان</p>
         </div>
-        <Button className="btn-gradient">
+        <Button className="btn-gradient" onClick={() => setIsAddDialogOpen(true)}>
           <Plus className="w-4 h-4 ml-2" />
           إضافة مشرف جديد
         </Button>
       </div>
 
       
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card className="card-gradient">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="text-right">
                 <div className="text-2xl font-bold text-primary">
-                  {adminUsers.filter(u => u.status === 'نشط').length}
+                  {admins.filter(u => u.status === 'نشط').length}
                 </div>
                 <p className="text-xs text-muted-foreground">المشرفون النشطون</p>
               </div>
@@ -122,32 +107,12 @@ const AdminManagement = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="text-right">
-                <div className="text-2xl font-bold text-green-500">1</div>
+                <div className="text-2xl font-bold text-green-500">
+                  {admins.filter(u => u.role === 'مدير عام').length}
+                </div>
                 <p className="text-xs text-muted-foreground">المديرون العامون</p>
               </div>
               <Shield className="w-8 h-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="card-gradient">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="text-right">
-                <div className="text-2xl font-bold text-yellow-500">3</div>
-                <p className="text-xs text-muted-foreground">دخول اليوم</p>
-              </div>
-              <Key className="w-8 h-8 text-yellow-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="card-gradient">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="text-right">
-                <div className="text-2xl font-bold text-red-500">1</div>
-                <p className="text-xs text-muted-foreground">تنبيهات الأمان</p>
-              </div>
-              <AlertTriangle className="w-8 h-8 text-red-500" />
             </div>
           </CardContent>
         </Card>
@@ -157,9 +122,7 @@ const AdminManagement = () => {
       <div className="flex space-x-1 space-x-reverse bg-muted p-1 rounded-lg w-fit">
         {[
           { key: 'admins', label: 'المشرفون' },
-          { key: 'permissions', label: 'الصلاحيات' },
-          { key: 'logs', label: 'سجل النشاط' },
-          { key: 'security', label: 'الأمان' }
+          { key: 'permissions', label: 'الصلاحيات' }
         ].map((tab) => (
           <button
             key={tab.key}
@@ -211,7 +174,7 @@ const AdminManagement = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {adminUsers.map((admin) => (
+                  {admins.map((admin) => (
                     <TableRow key={admin.id}>
                       <TableCell className="font-medium text-right">{admin.name}</TableCell>
                       <TableCell className="text-right">{admin.email}</TableCell>
@@ -237,7 +200,12 @@ const AdminManagement = () => {
                           <Button variant="ghost" size="sm">
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-700"
+                            onClick={() => deleteAdmin(admin._id)}
+                          >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -283,127 +251,16 @@ const AdminManagement = () => {
         </Card>
       )}
 
-      {activeTab === 'logs' && (
-        <Card className="card-gradient">
-          <CardHeader>
-            <CardTitle>سجل نشاط النظام</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-right">المستخدم</TableHead>
-                    <TableHead className="text-right">الإجراء</TableHead>
-                    <TableHead className="text-right">التفاصيل</TableHead>
-                    <TableHead className="text-right">التوقيت</TableHead>
-                    <TableHead className="text-right">المستوى</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {systemLogs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="font-medium text-right">{log.user}</TableCell>
-                      <TableCell className="text-right">{log.action}</TableCell>
-                      <TableCell className="max-w-64 truncate text-right">{log.details}</TableCell>
-                      <TableCell className="text-right">{log.timestamp}</TableCell>
-                      <TableCell className="text-right">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(log.severity)}`}>
-                          {log.severity}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {activeTab === 'security' && (
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="card-gradient">
-            <CardHeader>
-              <CardTitle>إعدادات الأمان</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-right">
-                  <p className="font-medium">المصادقة الثنائية</p>
-                  <p className="text-sm text-muted-foreground">تطلب المصادقة الثنائية لجميع المشرفين</p>
-                </div>
-                <Button variant="outline" size="sm">مُفعّل</Button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="text-right">
-                  <p className="font-medium">انتهاء الجلسة</p>
-                  <p className="text-sm text-muted-foreground">خروج تلقائي بعد عدم النشاط</p>
-                </div>
-                <select className="px-3 py-2 border border-input rounded-md bg-background">
-                  <option value="30">30 دقيقة</option>
-                  <option value="60">ساعة واحدة</option>
-                  <option value="120">ساعتان</option>
-                </select>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="text-right">
-                  <p className="font-medium">سياسة كلمة المرور</p>
-                  <p className="text-sm text-muted-foreground">الحد الأدنى لمتطلبات كلمة المرور</p>
-                </div>
-                <Button variant="outline" size="sm">تكوين</Button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="text-right">
-                  <p className="font-medium">قيود عنوان IP</p>
-                  <p className="text-sm text-muted-foreground">تحديد الوصول حسب عنوان IP</p>
-                </div>
-                <Button variant="outline" size="sm">إدارة</Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card-gradient">
-            <CardHeader>
-              <CardTitle>أحداث الأمان الأخيرة</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-red-100 dark:bg-red-900/20 rounded-lg">
-                  <div className="flex items-center space-x-3 space-x-reverse">
-                    <AlertTriangle className="w-5 h-5 text-red-500" />
-                    <div className="text-right">
-                      <p className="font-medium">محاولات دخول فاشلة</p>
-                      <p className="text-sm text-muted-foreground">5 محاولات من IP غير معروف</p>
-                    </div>
-                  </div>
-                  <span className="text-xs text-muted-foreground">منذ ساعتين</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
-                  <div className="flex items-center space-x-3 space-x-reverse">
-                    <Key className="w-5 h-5 text-yellow-500" />
-                    <div className="text-right">
-                      <p className="font-medium">تغيير كلمة المرور</p>
-                      <p className="text-sm text-muted-foreground">سارة علي قامت بتحديث كلمة المرور</p>
-                    </div>
-                  </div>
-                  <span className="text-xs text-muted-foreground">منذ يوم</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                  <div className="flex items-center space-x-3 space-x-reverse">
-                    <Shield className="w-5 h-5 text-green-500" />
-                    <div className="text-right">
-                      <p className="font-medium">تفعيل المصادقة الثنائية</p>
-                      <p className="text-sm text-muted-foreground">عمر سالم فعّل المصادقة الثنائية</p>
-                    </div>
-                  </div>
-                  <span className="text-xs text-muted-foreground">منذ 3 أيام</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <AddAdminDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onSubmit={async (data) => {
+          const success = await createAdmin(data);
+          if (success) {
+            setIsAddDialogOpen(false);
+          }
+        }}
+      />
     </div>
   );
 };

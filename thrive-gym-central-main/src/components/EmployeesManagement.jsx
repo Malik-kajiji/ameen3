@@ -7,6 +7,7 @@ import EmployeeDetailsDialog from './EmployeeDetailsDialog';
 import AddEmployeeDialog from './AddEmployeeDialog';
 import AttendanceCalendar from './AttendanceCalendar';
 import { motion } from 'framer-motion';
+import useEmployees from '@/hooks/useEmployees';
 
 const fade = { hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { type: 'spring', duration: 0.4 } } };
 const cardAnim = i => ({
@@ -22,47 +23,8 @@ const EmployeesManagement = () => {
   const [showAttendance, setShowAttendance] = useState(false);
   const [attendanceEmployee, setAttendanceEmployee] = useState(null);
 
-  const [employees, setEmployees] = useState([
-    {
-      id: 'EMP001',
-      name: 'أحمد حسن',
-      role: 'مدرب',
-      phone: '+218 91 234 5678',
-      email: 'ahmed@powerfit.ly',
-      salary: '800 د.ل',
-      status: 'نشط',
-      joinDate: '2024-01-15',
-      address: 'طرابلس - حي الأندلس',
-      emergencyContact: '+218 92 123 4567',
-      notes: 'مدرب محترف مع خبرة 5 سنوات'
-    },
-    {
-      id: 'EMP002',
-      name: 'سارة علي',
-      role: 'موظفة استقبال',
-      phone: '+218 92 345 6789',
-      email: 'sara@powerfit.ly',
-      salary: '600 د.ل',
-      status: 'نشط',
-      joinDate: '2024-02-01',
-      address: 'طرابلس - حي النصر',
-      emergencyContact: '+218 93 234 5678',
-      notes: 'موظفة مجتهدة ومتعاونة'
-    },
-    {
-      id: 'EMP003',
-      name: 'عمر سالم',
-      role: 'عامل نظافة',
-      phone: '+218 93 456 7890',
-      email: 'omar@powerfit.ly',
-      salary: '400 د.ل',
-      status: 'نشط',
-      joinDate: '2024-01-20',
-      address: 'طرابلس - حي الدهماني',
-      emergencyContact: '+218 94 345 6789',
-      notes: 'عامل مخلص ومنضبط'
-    }
-  ]);
+  // Use the employees hook
+  const { employees, loading, error, fetchEmployees, createEmployee, updateEmployee, deleteEmployee } = useEmployees();
 
   if (showAttendance && attendanceEmployee) {
     return (
@@ -87,27 +49,41 @@ const EmployeesManagement = () => {
   }
 
   const filteredEmployees = employees.filter(emp =>
-    (emp.name && emp.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (emp.fullName && emp.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (emp.id && emp.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (emp.role && emp.role.toLowerCase().includes(searchTerm.toLowerCase()))
+    (emp.role && emp.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (emp.jobTitle && emp.jobTitle.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleSaveEmployee = (updatedEmployee) => {
-    setEmployees(prev =>
-      prev.map(emp => (emp.id === updatedEmployee.id ? updatedEmployee : emp))
-    );
-    setIsDetailsDialogOpen(false);
-    setSelectedEmployee(null);
+  const handleSaveEmployee = async (updatedEmployee) => {
+    try {
+      await updateEmployee(updatedEmployee.id, updatedEmployee);
+      setIsDetailsDialogOpen(false);
+      setSelectedEmployee(null);
+    } catch (err) {
+      console.error('Error updating employee:', err);
+      // You might want to show an error message to the user here
+    }
   };
 
-  const handleAddEmployee = (newEmployee) => {
-    setEmployees([...employees, newEmployee]);
-    setIsAddDialogOpen(false);
+  const handleAddEmployee = async (newEmployee) => {
+    try {
+      await createEmployee(newEmployee);
+      setIsAddDialogOpen(false);
+    } catch (err) {
+      console.error('Error creating employee:', err);
+      // You might want to show an error message to the user here
+    }
   };
 
-  const handleDeleteEmployee = (id) => {
+  const handleDeleteEmployee = async (id) => {
     if (window.confirm('هل أنت متأكد من حذف هذا الموظف؟')) {
-      setEmployees(prev => prev.filter(emp => emp.id !== id));
+      try {
+        await deleteEmployee(id);
+      } catch (err) {
+        console.error('Error deleting employee:', err);
+        // You might want to show an error message to the user here
+      }
     }
   };
 
@@ -141,15 +117,15 @@ const EmployeesManagement = () => {
           </motion.p>
         </div>
         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.16 }}>
-          <Button 
-            className="btn-gradient"
+          <motion.button
+            className="btn-gradient inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-10 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={() => setIsAddDialogOpen(true)}
             whileHover={{ scale: 1.07 }}
             whileTap={{ scale: 0.95 }}
           >
             <Plus className="w-4 h-4 ml-2" />
             إضافة موظف جديد
-          </Button>
+          </motion.button>
         </motion.div>
       </motion.div>
 
@@ -198,17 +174,17 @@ const EmployeesManagement = () => {
                   {filteredEmployees.map((employee, i) => (
                     <motion.tr key={employee.id} variants={cardAnim(i)} initial="hidden" animate="show">
                       <TableCell className="font-medium text-right">{employee.id}</TableCell>
-                      <TableCell className="text-right">{employee.name}</TableCell>
-                      <TableCell className="text-right">{employee.role}</TableCell>
+                      <TableCell className="text-right">{employee.fullName}</TableCell>
+                      <TableCell className="text-right">{employee.jobTitle}</TableCell>
                       <TableCell className="text-right">{employee.phone}</TableCell>
                       <TableCell className="text-right">{employee.email}</TableCell>
-                      <TableCell className="text-right">{employee.salary}</TableCell>
+                      <TableCell className="text-right">{employee.salary} د.ل</TableCell>
                       <TableCell className="text-right">
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
-                          {employee.status}
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${employee.isActive !== false ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'}`}>
+                          {employee.isActive !== false ? 'نشط' : 'غير نشط'}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right">{employee.joinDate}</TableCell>
+                      <TableCell className="text-right">{employee.hireDate}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
                           <Button 
@@ -255,15 +231,29 @@ const EmployeesManagement = () => {
         </Card>
       </motion.div>
 
+      {/* Loading and Error Handling */}
+      {loading && (
+        <div className="flex justify-center items-center py-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      )}
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">خطأ! </strong>
+          <span className="block sm:inline">{error.message}</span>
+        </div>
+      )}
+
       <motion.div className="grid gap-4 md:grid-cols-3">
         {[
           {
-            value: employees.filter(e => e.status === 'نشط').length,
+            value: employees.filter(e => e.isActive !== false).length,
             label: 'الموظفون النشطون',
             color: 'text-green-500'
           },
           {
-            value: employees.reduce((sum, emp) => sum + parseInt(emp.salary.replace(/[^\d]/g, '')), 0) + ' د.ل',
+            value: employees.reduce((sum, emp) => sum + (emp.salary || 0), 0) + ' د.ل',
             label: 'إجمالي الرواتب الشهرية',
             color: 'text-primary'
           },

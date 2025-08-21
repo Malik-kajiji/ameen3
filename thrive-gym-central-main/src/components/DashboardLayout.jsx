@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { 
-  LayoutDashboard, 
-  Users, 
-  UserPlus, 
-  DollarSign, 
-  Settings, 
-  Bell, 
-  FileText, 
-  Shield, 
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import {
+  LayoutDashboard,
+  Users,
+  UserPlus,
+  DollarSign,
+  Settings,
+  Bell,
+  FileText,
+  Shield,
   Database,
   Menu,
   X,
@@ -15,8 +17,10 @@ import {
   Activity,
   PauseCircle,
   ChevronDown,
-  ChevronLeft
+  ChevronLeft,
+  LogOut
 } from 'lucide-react';
+import { useLogout } from '@/hooks/useLogout';
 import { Button } from '@/components/ui/button';
 
 const PhoenixLogo = ({ size = 'default' }) => {
@@ -32,10 +36,45 @@ const PhoenixLogo = ({ size = 'default' }) => {
   );
 };
 
-const DashboardLayout = ({ children, activeView = 'dashboard', onNavigate }) => {
+const DashboardLayout = () => {
+  const location = useLocation();
+  const activeView = location.pathname.split('/')[2] || 'dashboard';
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState(['members', 'operations']);
+  const { logout } = useLogout();
+  const user = useSelector((state) => state.userController?.user);
+
+  // Map navigation items to their access keys
+  const accessMap = {
+    'members': 'الأعضاء',
+    'add-member': 'الأعضاء',
+    'pause-requests': 'الأعضاء',
+    'employees': 'الموظفون',
+    'financial': 'المالية',
+    'assets': 'الممتلكات',
+    'reports': 'التقارير',
+    'biometric': 'البصمة',
+    'notifications': 'الإشعارات',
+    'website': 'الموقع',
+    'admin': 'المشرفون',
+    'settings': 'الإعدادات'
+  };
+
+  // Filter items based on user access
+  const filterItemsByAccess = (items) => {
+    if (!user || !user.access) return [];
+    if (user.access.includes('الكل')) return items;
+    return items.filter(item => !accessMap[item.href] || user.access.includes(accessMap[item.href]));
+  };
+
+  // Filter sections that have accessible items
+  const getFilteredSections = () => {
+    return navigationSections.map(section => ({
+      ...section,
+      items: filterItemsByAccess(section.items)
+    })).filter(section => section.items.length > 0 || section.key === 'overview');
+  };
 
   const navigationSections = [
     {
@@ -83,9 +122,13 @@ const DashboardLayout = ({ children, activeView = 'dashboard', onNavigate }) => 
     }
   ];
 
+  const navigate = useNavigate();
+  
   const handleNavClick = (href) => {
-    if (onNavigate) {
-      onNavigate(href);
+    if (href === 'dashboard') {
+      navigate('/dashboard');
+    } else {
+      navigate(`/dashboard/${href}`);
     }
     setMobileMenuOpen(false);
   };
@@ -156,7 +199,7 @@ const DashboardLayout = ({ children, activeView = 'dashboard', onNavigate }) => 
         </div>
 
         <nav className="flex-1 p-4 overflow-y-auto">
-          {navigationSections.map((section) => (
+          {getFilteredSections().map((section) => (
             <div key={section.key} className="mb-6">
               {sidebarOpen && (
                 <button
@@ -180,16 +223,26 @@ const DashboardLayout = ({ children, activeView = 'dashboard', onNavigate }) => 
         </nav>
 
         <div className="p-4 border-t border-border/50">
-          <div className="flex items-center space-x-3 space-x-reverse">
-            <div className="w-10 h-10 bg-gradient-to-br from-custom-red to-custom-dark-blue rounded-full flex items-center justify-center shadow-md">
-              <span className="text-white text-sm font-bold">م</span>
-            </div>
-            {sidebarOpen && (
-              <div className="animate-fade-in text-right">
-                <p className="text-sm font-semibold">مستخدم مدير</p>
-                <p className="text-xs text-muted-foreground">مدير عام</p>
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center space-x-3 space-x-reverse">
+              <div className="w-10 h-10 bg-gradient-to-br from-custom-red to-custom-dark-blue rounded-full flex items-center justify-center shadow-md">
+                <span className="text-white text-sm font-bold">م</span>
               </div>
-            )}
+              {sidebarOpen && (
+                <div className="animate-fade-in text-right">
+                  <p className="text-sm font-semibold">مستخدم مدير</p>
+                  <p className="text-xs text-muted-foreground">مدير عام</p>
+                </div>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              className="w-full justify-start space-x-2 space-x-reverse text-red-500 hover:text-red-600 hover:bg-red-100/50"
+              onClick={logout}
+            >
+              <LogOut className="w-4 h-4" />
+              {sidebarOpen && <span>تسجيل الخروج</span>}
+            </Button>
           </div>
         </div>
       </div>
@@ -218,7 +271,7 @@ const DashboardLayout = ({ children, activeView = 'dashboard', onNavigate }) => 
         </div>
 
         <nav className="flex-1 p-4 overflow-y-auto">
-          {navigationSections.map((section) => (
+          {getFilteredSections().map((section) => (
             <div key={section.key} className="mb-6">
               <button
                 onClick={() => toggleSection(section.key)}
@@ -257,14 +310,24 @@ const DashboardLayout = ({ children, activeView = 'dashboard', onNavigate }) => 
         </nav>
 
         <div className="p-4 border-t border-border/50">
-          <div className="flex items-center space-x-3 space-x-reverse">
-            <div className="w-10 h-10 bg-gradient-to-br from-custom-red to-custom-dark-blue rounded-full flex items-center justify-center shadow-md">
-              <span className="text-white text-sm font-bold">م</span>
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center space-x-3 space-x-reverse">
+              <div className="w-10 h-10 bg-gradient-to-br from-custom-red to-custom-dark-blue rounded-full flex items-center justify-center shadow-md">
+                <span className="text-white text-sm font-bold">م</span>
+              </div>
+              <div className="text-right">
+                <p className="phone-text-sm font-semibold">مستخدم مدير</p>
+                <p className="phone-text-xs text-muted-foreground">مدير عام</p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="phone-text-sm font-semibold">مستخدم مدير</p>
-              <p className="phone-text-xs text-muted-foreground">مدير عام</p>
-            </div>
+            <Button
+              variant="ghost"
+              className="w-full justify-start space-x-2 space-x-reverse text-red-500 hover:text-red-600 hover:bg-red-100/50"
+              onClick={logout}
+            >
+              <LogOut className="w-4 h-4" />
+              <span>تسجيل الخروج</span>
+            </Button>
           </div>
         </div>
       </div>
@@ -304,7 +367,7 @@ const DashboardLayout = ({ children, activeView = 'dashboard', onNavigate }) => 
 
         <main className="flex-1 p-6 phone-p-4 overflow-auto bg-gradient-to-br from-background to-accent/5">
           <div className="max-w-full animate-fade-in">
-            {children}
+            <Outlet />
           </div>
         </main>
       </div>

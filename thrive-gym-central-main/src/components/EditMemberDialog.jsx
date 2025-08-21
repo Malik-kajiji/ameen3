@@ -9,23 +9,23 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
+import useMembers from '@/hooks/useMembers';
 
 
 const memberSchema = z.object({
   name: z.string().min(2, 'الاسم يجب أن يكون على الأقل حرفين'),
   phone: z.string().min(10, 'رقم الهاتف غير صحيح'),
   email: z.string().email('البريد الإلكتروني غير صحيح').optional().or(z.literal('')),
-  address: z.string().optional(),
-  emergencyContact: z.string().optional(),
+  city: z.string().optional(),
   age: z.number().min(16, 'العمر يجب أن يكون 16 سنة على الأقل').max(100, 'العمر غير صحيح').optional(),
   gender: z.string().optional(),
   status: z.enum(['نشط', 'متوقف', 'منتهي']),
-  plan: z.string().min(1, 'يجب اختيار خطة الاشتراك'),
 });
 
 const EditMemberDialog = ({ member, isOpen, onClose, onSave }) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const { updateMember } = useMembers();
 
   const form = useForm({
     resolver: zodResolver(memberSchema),
@@ -33,12 +33,10 @@ const EditMemberDialog = ({ member, isOpen, onClose, onSave }) => {
       name: '',
       phone: '',
       email: '',
-      address: '',
-      emergencyContact: '',
+      city: '',
       age: undefined,
       gender: '',
       status: 'نشط',
-      plan: '',
     },
   });
 
@@ -48,12 +46,10 @@ const EditMemberDialog = ({ member, isOpen, onClose, onSave }) => {
         name: member.name,
         phone: member.phone,
         email: member.email || '',
-        address: member.address || '',
-        emergencyContact: member.emergencyContact || '',
-        age: member.age,
+        city: member.city || '',
+        age: undefined, // Age is not available in the new data structure
         gender: member.gender || '',
         status: member.status,
-        plan: member.plan,
       });
     }
   }, [member, form]);
@@ -63,18 +59,15 @@ const EditMemberDialog = ({ member, isOpen, onClose, onSave }) => {
 
     setIsLoading(true);
     try {
-      const updatedMember = {
-        ...member,
+      // Update member through the hook
+      const updatedMember = await updateMember(member.id, {
         name: data.name,
         phone: data.phone,
         email: data.email,
-        address: data.address,
-        emergencyContact: data.emergencyContact,
-        age: data.age,
+        city: data.city,
         gender: data.gender,
         status: data.status,
-        plan: data.plan,
-      };
+      });
 
       onSave(updatedMember);
       toast({
@@ -85,7 +78,7 @@ const EditMemberDialog = ({ member, isOpen, onClose, onSave }) => {
     } catch (error) {
       toast({
         title: "خطأ في التحديث",
-        description: "حدث خطأ أثناء تحديث البيانات",
+        description: error.message || "حدث خطأ أثناء تحديث البيانات",
         variant: "destructive",
       });
     } finally {
@@ -154,18 +147,12 @@ const EditMemberDialog = ({ member, isOpen, onClose, onSave }) => {
 
               <FormField
                 control={form.control}
-                name="age"
+                name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-right">العمر</FormLabel>
+                    <FormLabel className="text-right">المدينة</FormLabel>
                     <FormControl>
-                      <Input 
-                        {...field} 
-                        type="number" 
-                        placeholder="25" 
-                        className="text-right"
-                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                      />
+                      <Input {...field} placeholder="طرابلس" className="text-right" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -212,44 +199,6 @@ const EditMemberDialog = ({ member, isOpen, onClose, onSave }) => {
                         <SelectItem value="منتهي">منتهي</SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="plan"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-right">خطة الاشتراك *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="text-right">
-                          <SelectValue placeholder="اختر الخطة" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="شهري">شهري</SelectItem>
-                        <SelectItem value="3 أشهر">3 أشهر</SelectItem>
-                        <SelectItem value="6 أشهر">6 أشهر</SelectItem>
-                        <SelectItem value="سنوي">سنوي</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="emergencyContact"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-right">جهة اتصال الطوارئ</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="+218 92 345 6789" className="text-right" />
-                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

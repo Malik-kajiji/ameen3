@@ -2,15 +2,22 @@ const JWT = require('jsonwebtoken');
 const Admin = require('../models/admin')
 
 
-const adimMiddleware = async (req,res,next)=>{
-    const { authorization } = req.headers
-
-    if(!authorization){
-        return res.status(401).json({error:'لم تتم عملية التحقق بنجاح'});
-    }
-
+const adminMiddleware = async (req, res, next) => {
     try {
-        const token = authorization.split(' ')[1];
+        const authorization = req.headers['authorization'] || req.headers['Authorization'];
+
+        if (!authorization) {
+            console.log('No authorization header found:', req.headers);
+            return res.status(401).json({ error: 'لم تتم عملية التحقق بنجاح' });
+        }
+
+        const token = authorization.startsWith('Bearer ')
+            ? authorization.split(' ')[1]
+            : authorization;
+
+        if (!token) {
+            return res.status(401).json({ error: 'لم تتم عملية التحقق بنجاح' });
+        }
         const {_id} = JWT.verify(token,process.env.SECRET)
         if(_id === process.env.OWNER_ID) {
             req.admin = {admin_id:_id,access:['owner'],username:process.env.OWNER_EMAIL}
@@ -25,8 +32,9 @@ const adimMiddleware = async (req,res,next)=>{
         }
         next()
     }catch (err){
-        return res.status(401).json({error:err.message});
+        console.error('Auth error:', err);
+        return res.status(401).json({ error: err.message });
     }
 }
 
-module.exports = adimMiddleware
+module.exports = adminMiddleware

@@ -18,6 +18,7 @@ const AddEmployeeDialog = ({ isOpen, onClose, onSave }) => {
     role: '',
     phone: '',
     email: '',
+    password: '',
     salary: '',
     status: 'نشط',
     joinDate: new Date(),
@@ -39,6 +40,7 @@ const AddEmployeeDialog = ({ isOpen, onClose, onSave }) => {
       role: '',
       phone: '',
       email: '',
+      password: '',
       salary: '',
       status: 'نشط',
       joinDate: new Date(),
@@ -111,6 +113,18 @@ const AddEmployeeDialog = ({ isOpen, onClose, onSave }) => {
                 onChange={(e) => setEmployeeData({ ...employeeData, email: e.target.value })}
                 className="text-right"
                 placeholder="@gmail.com"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-right">كلمة المرور</Label>
+              <Input
+                id="password"
+                type="password"
+                value={employeeData.password}
+                onChange={(e) => setEmployeeData({ ...employeeData, password: e.target.value })}
+                className="text-right"
+                placeholder="أدخل كلمة المرور"
               />
             </div>
 

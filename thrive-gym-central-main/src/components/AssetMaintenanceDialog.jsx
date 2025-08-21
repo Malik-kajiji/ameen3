@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { CalendarIcon, Wrench, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import useAssets from '@/hooks/useAssets';
 
 const AssetMaintenanceDialog = ({ asset, isOpen, onClose, onSave }) => {
   const [maintenanceType, setMaintenanceType] = useState('');
@@ -22,43 +23,48 @@ const AssetMaintenanceDialog = ({ asset, isOpen, onClose, onSave }) => {
   const [estimatedCost, setEstimatedCost] = useState('');
   const [notes, setNotes] = useState('');
 
+  // Use the assets hook
+  const { getMaintenanceLogs, addMaintenanceLog } = useAssets();
+
+  const [maintenanceHistory, setMaintenanceHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+
   if (!asset) return null;
 
-  const maintenanceHistory = [
-    {
-      date: '2024-01-10',
-      type: 'صيانة دورية',
-      technician: 'أحمد التقني',
-      cost: '50 د.ل',
-      status: 'مكتملة',
-      notes: 'تم تنظيف وفحص جميع الأجزاء'
-    },
-    {
-      date: '2023-10-15',
-      type: 'إصلاح عطل',
-      technician: 'محمد الفني',
-      cost: '120 د.ل',
-      status: 'مكتملة',
-      notes: 'استبدال قطعة في المحرك'
-    }
-  ];
-
-  const handleSave = () => {
-    const maintenance = {
-      assetId: asset.id,
-      assetName: asset.name,
-      maintenanceType,
-      scheduledDate,
-      technician,
-      description,
-      priority,
-      estimatedCost,
-      notes,
-      status: 'مجدولة',
-      createdAt: new Date()
+  // Fetch maintenance history when asset changes
+  useEffect(() => {
+    const fetchMaintenanceHistory = async () => {
+      if (asset && asset.id) {
+        try {
+          setLoading(true);
+          const history = await getMaintenanceLogs(asset.id);
+          setMaintenanceHistory(history);
+        } catch (err) {
+          console.error('Error fetching maintenance history:', err);
+        } finally {
+          setLoading(false);
+        }
+      }
     };
-    onSave(maintenance);
-    onClose();
+
+    fetchMaintenanceHistory();
+  }, [asset, getMaintenanceLogs]);
+
+  const handleSave = async () => {
+    try {
+      const maintenanceData = {
+        maintenanceType,
+        description,
+        maintenanceDate: scheduledDate || new Date(),
+        cost: parseFloat(estimatedCost.replace(/[^\d.-]/g, '')) || 0
+      };
+      
+      await addMaintenanceLog(asset.id, maintenanceData);
+      onSave(maintenanceData);
+      onClose();
+    } catch (err) {
+      console.error('Error adding maintenance log:', err);
+    }
   };
 
   return (
@@ -175,21 +181,32 @@ const AssetMaintenanceDialog = ({ asset, isOpen, onClose, onSave }) => {
               <CardTitle className="text-right">تاريخ الصيانة</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {maintenanceHistory.map((m, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 border rounded">
-                    <div className="text-right flex-1">
-                      <div className="font-medium">{m.type}</div>
-                      <div className="text-sm text-muted-foreground">{m.date} - {m.technician}</div>
-                      <div className="text-sm text-muted-foreground">{m.notes}</div>
+              {loading ? (
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {maintenanceHistory.map((m, index) => (
+                    <div key={index} className="flex justify-between items-center p-3 border rounded">
+                      <div className="text-right flex-1">
+                        <div className="font-medium">{m.maintenanceType}</div>
+                        <div className="text-sm text-muted-foreground">{m.maintenanceDate}</div>
+                        <div className="text-sm text-muted-foreground">{m.description}</div>
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-green-600">{m.cost} د.ل</div>
+                        <Badge variant="default"><CheckCircle className="w-3 h-3 ml-1" />مكتملة</Badge>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <div className="font-bold text-green-600">{m.cost}</div>
-                      <Badge variant="default"><CheckCircle className="w-3 h-3 ml-1" />{m.status}</Badge>
+                  ))}
+                  {maintenanceHistory.length === 0 && (
+                    <div className="text-center text-muted-foreground py-4">
+                      لا توجد سجلات صيانة سابقة
                     </div>
-                  </div>
-                ))}
-              </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

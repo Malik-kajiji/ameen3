@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Search, Filter, Check, X, Clock, PauseCircle, AlertTriangle, CheckSquare, XSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import usePauseRequests from '@/hooks/usePauseRequests';
 
 const PauseRequestDetailsDialog = ({ open, onClose, request, getStatusColor }) => {
   if (!open || !request) return null;
@@ -49,36 +50,11 @@ const PauseRequestsManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedRequests, setSelectedRequests] = useState([]);
-
+  
   const [showDetails, setShowDetails] = useState(false);
   const [currentRequest, setCurrentRequest] = useState(null);
-
-  const [pauseRequests, setPauseRequests] = useState([
-    {
-      id: 'PR-001',
-      member: 'أحمد علي حسن',
-      memberId: 'GM001',
-      reason: 'سفر للخارج للعمل',
-      requestDate: '2024-01-10',
-      startDate: '2024-01-15',
-      endDate: '2024-02-15',
-      duration: '30 يوم',
-      status: 'معلق',
-      remainingDays: '245'
-    },
-    {
-      id: 'PR-004',
-      member: 'فاطمة حسن علي',
-      memberId: 'GM004',
-      reason: 'حمل',
-      requestDate: '2024-01-14',
-      startDate: '2024-01-20',
-      endDate: '2024-04-20',
-      duration: '90 يوم',
-      status: 'معلق',
-      remainingDays: '276'
-    },
-  ]);
+  
+  const { pauseRequests, loading, error, fetchPauseRequests, approvePauseRequest, rejectPauseRequest, bulkApprovePauseRequests, bulkRejectPauseRequests } = usePauseRequests();
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -97,7 +73,7 @@ const PauseRequestsManagement = () => {
     const matchesSearch =
       request.member.toLowerCase().includes(searchTerm.toLowerCase()) ||
       request.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.reason.toLowerCase().includes(searchTerm.toLowerCase());
+      (request.reason && request.reason.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = statusFilter === 'all' || request.status.toLowerCase() === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -120,60 +96,72 @@ const PauseRequestsManagement = () => {
     }
   };
 
-  const handleBulkApprove = () => {
-    const approvedRequests = selectedRequests.length;
-    setPauseRequests(prev =>
-      prev.map(request =>
-        selectedRequests.includes(request.id)
-          ? { ...request, status: 'موافق' }
-          : request
-      )
-    );
-    setSelectedRequests([]);
-    toast({
-      title: "تم الموافقة بنجاح",
-      description: `تم الموافقة على ${approvedRequests} طلب إيقاف`,
-    });
+  const handleBulkApprove = async () => {
+    try {
+      await bulkApprovePauseRequests(selectedRequests);
+      const approvedRequests = selectedRequests.length;
+      setSelectedRequests([]);
+      toast({
+        title: "تم الموافقة بنجاح",
+        description: `تم الموافقة على ${approvedRequests} طلب إيقاف`,
+      });
+    } catch (err) {
+      toast({
+        title: "خطأ في الموافقة",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleBulkReject = () => {
-    const rejectedRequests = selectedRequests.length;
-    setPauseRequests(prev =>
-      prev.map(request =>
-        selectedRequests.includes(request.id)
-          ? { ...request, status: 'مرفوض' }
-          : request
-      )
-    );
-    setSelectedRequests([]);
-    toast({
-      title: "تم الرفض بنجاح",
-      description: `تم رفض ${rejectedRequests} طلب إيقاف`,
-    });
+  const handleBulkReject = async () => {
+    try {
+      await bulkRejectPauseRequests(selectedRequests);
+      const rejectedRequests = selectedRequests.length;
+      setSelectedRequests([]);
+      toast({
+        title: "تم الرفض بنجاح",
+        description: `تم رفض ${rejectedRequests} طلب إيقاف`,
+      });
+    } catch (err) {
+      toast({
+        title: "خطأ في الرفض",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleApprove = (id) => {
-    setPauseRequests(prev =>
-      prev.map(request =>
-        request.id === id ? { ...request, status: 'موافق' } : request
-      )
-    );
-    toast({
-      title: "تم الموافقة",
-      description: "تم الموافقة على طلب الإيقاف",
-    });
+  const handleApprove = async (id) => {
+    try {
+      await approvePauseRequest(id);
+      toast({
+        title: "تم الموافقة",
+        description: "تم الموافقة على طلب الإيقاف",
+      });
+    } catch (err) {
+      toast({
+        title: "خطأ في الموافقة",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleReject = (id) => {
-    setPauseRequests(prev =>
-      prev.map(request =>
-        request.id === id ? { ...request, status: 'مرفوض' } : request
-      )
-    );
-    toast({
-      title: "تم الرفض",
-      description: "تم رفض طلب الإيقاف",
-    });
+  const handleReject = async (id) => {
+    try {
+      await rejectPauseRequest(id);
+      toast({
+        title: "تم الرفض",
+        description: "تم رفض طلب الإيقاف",
+      });
+    } catch (err) {
+      toast({
+        title: "خطأ في الرفض",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const fade = {
@@ -184,6 +172,34 @@ const PauseRequestsManagement = () => {
     hidden: { opacity: 0, y: 16 },
     show: { opacity: 1, y: 0, transition: { delay: i * 0.09 + 0.07, duration: 0.27, type: 'spring' } },
   });
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">جارٍ تحميل بيانات طلبات الإيقاف...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-center text-red-500">
+          <p className="text-xl font-bold mb-2">خطأ في تحميل البيانات</p>
+          <p>{error.message}</p>
+          <Button 
+            className="mt-4" 
+            onClick={fetchPauseRequests}
+          >
+            إعادة المحاولة
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div className="space-y-6 rtl" variants={fade} initial="hidden" animate="show">

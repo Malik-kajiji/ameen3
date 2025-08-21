@@ -1,10 +1,28 @@
-const express = require('express')
-const router = express.Router()
+const express = require('express');
+const router = express.Router();
+const adminMiddleware = require('../../middlewares/adminMiddleware');
 
 const {
-    loginAsAdmin
-} = require('../../controllers/adminControllers/adminController')
+    loginAsAdmin,
+    getAdmins,
+    createAdmin,
+    updateAdmin,
+    deleteAdmin
+} = require('../../controllers/adminControllers/adminController');
 
-router.post('/login',loginAsAdmin)
+// Import packages routes
+const packagesRoutes = require('./packagesRoutes');
 
-module.exports = router
+// Use packages routes
+router.use('/', packagesRoutes);
+
+// Public route for login
+router.post('/login', loginAsAdmin);
+
+// Protected admin routes
+router.get('/admins', adminMiddleware, getAdmins);
+router.post('/admins', adminMiddleware, createAdmin);
+router.put('/admins/:id', adminMiddleware, updateAdmin);
+router.delete('/admins/:id', adminMiddleware, deleteAdmin);
+
+module.exports = router;

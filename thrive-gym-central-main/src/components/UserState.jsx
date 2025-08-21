@@ -21,7 +21,11 @@ const UserState = () => {
         // const data = userStore.get('user')
         const data = JSON.parse(localStorage.getItem('user'))
         if(data){
-            dispatch(userActions.setUserData({...data}))
+            dispatch(userActions.setUserData({
+                username: data.username,
+                token: data.token,
+                access: data.access
+            }))
         }else {
             navigate('/login')
         }

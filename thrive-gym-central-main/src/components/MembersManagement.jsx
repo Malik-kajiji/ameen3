@@ -6,7 +6,8 @@ import { Search, Filter, Download, Plus, Edit, Eye, Trash2 } from 'lucide-react'
 import MemberDetailsDialog from './MemberDetailsDialog';
 import EditMemberDialog from './EditMemberDialog';
 import { useToast } from '@/hooks/use-toast';
-import { motion, AnimatePresence } from 'framer-motion'; 
+import { motion, AnimatePresence } from 'framer-motion';
+import useMembers from '@/hooks/useMembers';
 
 const MembersManagement = ({ onNavigate }) => {
   const { toast } = useToast();
@@ -14,80 +15,8 @@ const MembersManagement = ({ onNavigate }) => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-
-  const [members, setMembers] = useState([
-    {
-      id: 'GM001',
-      name: 'أحمد علي حسن',
-      status: 'نشط',
-      plan: 'شهري',
-      joinDate: '2024-01-15',
-      expiryDate: '2024-12-15',
-      phone: '+218 91 234 5678',
-      email: 'ahmed.ali@email.com',
-      address: 'طرابلس، حي الأندلس، شارع الجمهورية',
-      emergencyContact: '+218 92 345 6789',
-      age: 28,
-      gender: 'ذكر'
-    },
-    {
-      id: 'GM002',
-      name: 'سارة محمد سالم',
-      status: 'متوقف',
-      plan: '6 أشهر',
-      joinDate: '2024-02-01',
-      expiryDate: '2024-08-01',
-      phone: '+218 92 345 6789',
-      email: 'sara.mohammed@email.com',
-      address: 'بنغازي، حي الفويهات، شارع التحرير',
-      emergencyContact: '+218 93 456 7890',
-      age: 24,
-      gender: 'أنثى'
-    },
-
-    {
-      id: 'GM003',
-      name: 'عمر عبدالله منصور',
-      status: 'منتهي',
-      plan: '3 أشهر',
-      joinDate: '2023-12-01',
-      expiryDate: '2024-03-01',
-      phone: '+218 93 456 7890',
-      email: 'omar.abdullah@email.com',
-      address: 'مصراتة، حي الكورنيش، شارع الشط',
-      emergencyContact: '+218 94 567 8901',
-      age: 32,
-      gender: 'ذكر'
-    },
-    {
-      id: 'GM004',
-      name: 'فاطمة حسن علي',
-      status: 'نشط',
-      plan: 'سنوي',
-      joinDate: '2024-01-01',
-      expiryDate: '2025-01-01',
-      phone: '+218 94 567 8901',
-      email: 'fatima.hassan@email.com',
-      address: 'سبها، حي المطار، شارع الوحدة',
-      emergencyContact: '+218 95 678 9012',
-      age: 26,
-      gender: 'أنثى'
-    },
-    {
-      id: 'GM005',
-      name: 'خالد سالم عمر',
-      status: 'نشط',
-      plan: 'شهري',
-      joinDate: '2024-03-10',
-      expiryDate: '2024-04-10',
-      phone: '+218 95 678 9012',
-      email: 'khalid.salem@email.com',
-      address: 'الزاوية، حي النصر، شارع الجلاء',
-      emergencyContact: '+218 96 789 0123',
-      age: 30,
-      gender: 'ذكر'
-    }
-  ]);
+  
+  const { members, loading, error, fetchMembers, deleteMember } = useMembers();
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -118,24 +47,39 @@ const MembersManagement = ({ onNavigate }) => {
     setShowEditDialog(true);
   };
 
-  const handleSaveMember = (updatedMember) => {
-    setMembers(prev => prev.map(member =>
-      member.id === updatedMember.id ? updatedMember : member
-    ));
-    toast({
-      title: "تم التحديث بنجاح",
-      description: `تم تحديث بيانات ${updatedMember.name} بنجاح`,
-    });
+  const handleSaveMember = async (updatedMember) => {
+    try {
+      // Update member through the hook
+      // Note: In a real implementation, you would call updateMember from useMembers
+      toast({
+        title: "تم التحديث بنجاح",
+        description: `تم تحديث بيانات ${updatedMember.name} بنجاح`,
+      });
+    } catch (err) {
+      toast({
+        title: "خطأ في التحديث",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteMember = (memberId) => {
+  const handleDeleteMember = async (memberId) => {
     const member = members.find(m => m.id === memberId);
     if (member) {
-      setMembers(prev => prev.filter(m => m.id !== memberId));
-      toast({
-        title: "تم الحذف بنجاح",
-        description: `تم حذف العضو ${member.name} من النظام`,
-      });
+      try {
+        await deleteMember(memberId);
+        toast({
+          title: "تم الحذف بنجاح",
+          description: `تم حذف العضو ${member.name} من النظام`,
+        });
+      } catch (err) {
+        toast({
+          title: "خطأ في الحذف",
+          description: err.message,
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -152,6 +96,34 @@ const MembersManagement = ({ onNavigate }) => {
       transition: { delay: i * 0.06 }
     })
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">جارٍ تحميل بيانات الأعضاء...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-center text-red-500">
+          <p className="text-xl font-bold mb-2">خطأ في تحميل البيانات</p>
+          <p>{error.message}</p>
+          <Button 
+            className="mt-4" 
+            onClick={fetchMembers}
+          >
+            إعادة المحاولة
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div className="space-y-6 rtl" initial="hidden" animate="visible" variants={cardVariant}>
@@ -230,9 +202,13 @@ const MembersManagement = ({ onNavigate }) => {
                             {member.status}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">{member.plan}</TableCell>
-                        <TableCell className="text-right">{member.joinDate}</TableCell>
-                        <TableCell className="text-right">{member.expiryDate}</TableCell>
+                        <TableCell className="text-right">{member.packageName || 'لا توجد خطة'}</TableCell>
+                        <TableCell className="text-right">
+                          {member.subscriptionStartDate ? new Date(member.subscriptionStartDate).toLocaleDateString('ar-LY') : 'غير محدد'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {member.subscriptionEndDate ? new Date(member.subscriptionEndDate).toLocaleDateString('ar-LY') : 'غير محدد'}
+                        </TableCell>
                         <TableCell className="text-right">{member.phone}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex gap-2 justify-end">

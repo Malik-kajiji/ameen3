@@ -90,11 +90,19 @@ const getHomePageData = async (req, res) => {
                 }
             }
         ]);
+        
+
+        
         const packagePercentage = packages.map(pkg => {
-            const found = packageCounts.find(pc => pc._id === pkg.name);
+            const found = packageCounts.find(pc => pc._id === pkg.title);
+            const count = found ? found.count : 0;
+            const percentage = totalSubs === 0 ? 0 : Math.round((count / totalSubs) * 100);
+            
+
+            
             return {
-                packageName: pkg.name,
-                percentage: totalSubs === 0 ? 0 : Math.round(((found?.count || 0) / totalSubs) * 100)
+                packageName: pkg.title,
+                percentage: percentage
             };
         });
 
@@ -131,6 +139,7 @@ const getHomePageData = async (req, res) => {
             attendanceByDay
         });
     } catch (err) {
+        console.error("Error in getHomePageData:", err);
         res.status(400).json({ message: err.message });
     }
 };
@@ -202,11 +211,23 @@ const getDashboardDataByTimeframe = async (req, res) => {
             { $match: { createdAt: { $gte: start, $lt: end } } },
             { $group: { _id: "$packageName", count: { $sum: 1 } } }
         ]);
+        
+        // Debug information
+        console.log(`Timeframe: ${timeframe}, Total subscriptions in timeframe:`, totalSubs);
+        console.log("Packages:", packages.map(p => p.title));
+        console.log("Package counts in timeframe:", packageCounts);
+        
         const packagePercentage = packages.map(pkg => {
-            const found = packageCounts.find(pc => pc._id === pkg.name);
+            const found = packageCounts.find(pc => pc._id === pkg.title);
+            const count = found ? found.count : 0;
+            const percentage = totalSubs === 0 ? 0 : Math.round((count / totalSubs) * 100);
+            
+            // Debug information for each package
+            console.log(`Timeframe ${timeframe}, Package: ${pkg.title}, Found: ${!!found}, Count: ${count}, Percentage: ${percentage}`);
+            
             return {
-                packageName: pkg.name,
-                percentage: totalSubs === 0 ? 0 : Math.round(((found?.count || 0) / totalSubs) * 100)
+                packageName: pkg.title,
+                percentage: percentage
             };
         });
 
@@ -248,6 +269,7 @@ const getDashboardDataByTimeframe = async (req, res) => {
             attendanceByTimeUnit
         });
     } catch (err) {
+        console.error("Error in getDashboardDataByTimeframe:", err);
         res.status(400).json({ message: err.message });
     }
 };
