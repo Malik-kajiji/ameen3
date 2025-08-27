@@ -7,7 +7,7 @@ const getAllMembers = async (req, res) => {
     try {
         // Get all users
         const users = await userModel.find().sort({ createdAt: -1 });
-        console.log("Fetched users:", users);
+        
         
         // Get all subscriptions for mapping
         const subscriptions = await subscriptionModel.find();
@@ -107,11 +107,11 @@ const getAllMembers = async (req, res) => {
 const getMemberById = async (req, res) => {
     try {
         const { id } = req.params;
-        console.log("Fetching member by ID:", id);
+        
         
         // Extract user number from ID (GM001 -> 1)
         const userNumber = parseInt(id.replace('GM', ''));
-        console.log("Parsed userNumber:", userNumber);
+        
         
         // Validate that userNumber is a valid number
         if (isNaN(userNumber)) {
@@ -299,7 +299,7 @@ const createMember = async (req, res) => {
             username: memberData.name,
             phone: memberData.phone,
             email: memberData.email,
-            password: await generateRandomPassword(),
+            password: memberData.password,  // Use provided password
             gender: memberData.gender || 'male',
             city: memberData.city || memberData.nationality || 'غير محدد',
             profilePicture: 'default.jpg',

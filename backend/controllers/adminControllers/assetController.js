@@ -1,5 +1,6 @@
 const assetModel = require('../../models/assets');
 const maintenanceLogModel = require('../../models/maintenanceLog');
+const expenseModel = require('../../models/expense');
 
 // Get all assets
 const getAllAssets = async (req, res) => {
@@ -89,6 +90,17 @@ const createAsset = async (req, res) => {
             status,
             location,
             supplier
+        );
+
+        // Create expense record for the asset purchase
+        await expenseModel.addExpense(
+            price,
+            'assets',
+            `شراء ${name}`,
+            'paid',
+            'cash',
+            `${category || ''} - ${supplier || ''}`,
+            purchaseDate || new Date()
         );
         
         // Calculate total maintenance cost for this asset
@@ -237,6 +249,17 @@ const addMaintenanceLog = async (req, res) => {
             description,
             maintenanceDate,
             cost || 0
+        );
+
+        // Create expense record for the maintenance
+        await expenseModel.addExpense(
+            cost || 0,
+            'maintenance',
+            `صيانة ${maintenanceType} - ${description}`,
+            'paid',
+            'cash',
+            `Asset ID: ${assetId}`,
+            maintenanceDate || new Date()
         );
         
         const formattedLog = {

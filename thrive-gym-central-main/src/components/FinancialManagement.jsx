@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DollarSign,
   TrendingUp,
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import CreateInvoiceDialog from './CreateInvoiceDialog';
+import AddExpenseDialog from './AddExpenseDialog';
 import { motion } from 'framer-motion';
 import useFinancial from '@/hooks/useFinancial';
 
@@ -33,7 +35,10 @@ const cardAnim = i => ({
 const FinancialManagement = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateInvoice, setShowCreateInvoice] = useState(false);
+  const [showAddExpense, setShowAddExpense] = useState(false);
 
   // Use the financial hook
   const {
@@ -44,36 +49,58 @@ const FinancialManagement = () => {
     error,
     fetchIncomeTransactions,
     fetchExpenseTransactions,
-    fetchFinancialReports,
-    reports,
-    createInvoice
+    createInvoice,
+    updatePaymentStatus,
+    updateExpenseStatus,
+    addExpense
   } = useFinancial();
 
-  // Load report data when component mounts
-  useEffect(() => {
-    fetchFinancialReports('monthly');
-  }, [fetchFinancialReports]);
-
-  // Format data for charts from reports
-  const monthlyData = reports.reportData ? reports.reportData.map(item => ({
-    month: new Date(item.date).toLocaleDateString('ar-EG', { month: 'short' }),
-    income: item.income,
-    expenses: item.expenses,
-    profit: item.profit
-  })) : [];
+  // Format data for charts
+  const monthlyData = [
+    { month: 'يناير', income: 12000, expenses: 8000, profit: 4000 },
+    { month: 'فبراير', income: 15000, expenses: 9000, profit: 6000 },
+    { month: 'مارس', income: 18000, expenses: 10000, profit: 8000 },
+    // Add more months as needed
+  ];
 
   // Filter transactions based on search term
-  const filteredIncomeTransactions = incomeTransactions.filter((tran) =>
-    tran.member?.includes(searchTerm) ||
-    tran.id?.includes(searchTerm) ||
-    tran.type?.includes(searchTerm)
-  );
+  const filteredIncomeTransactions = incomeTransactions.filter((tran) => {
+    const matchesSearch =
+      tran.member?.includes(searchTerm) ||
+      tran.id?.includes(searchTerm) ||
+      tran.type?.includes(searchTerm);
 
-  const filteredExpenseTransactions = expenseTransactions.filter((exp) =>
-    exp.category?.includes(searchTerm) ||
-    exp.id?.includes(searchTerm) ||
-    exp.description?.includes(searchTerm)
-  );
+    if (typeFilter === 'all') return matchesSearch;
+    return matchesSearch && tran.type === typeFilter;
+  });
+
+  const getArabicStatus = (status) => {
+    switch (status) {
+      case 'paid': return 'مدفوع';
+      case 'pending': return 'معلق';
+      case 'overdue': return 'متأخر';
+      default: return status;
+    }
+  };
+
+  const getEnglishStatus = (status) => {
+    switch (status) {
+      case 'مدفوع': return 'paid';
+      case 'معلق': return 'pending';
+      case 'متأخر': return 'overdue';
+      default: return status;
+    }
+  };
+
+  const filteredExpenseTransactions = expenseTransactions.filter((exp) => {
+    const matchesSearch =
+      exp.category?.includes(searchTerm) ||
+      exp.id?.includes(searchTerm) ||
+      exp.description?.includes(searchTerm);
+
+    if (statusFilter === 'all') return matchesSearch;
+    return matchesSearch && getEnglishStatus(exp.status) === statusFilter;
+  });
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -200,11 +227,10 @@ const FinancialManagement = () => {
       </motion.div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
           <TabsTrigger value="income">الإيرادات</TabsTrigger>
           <TabsTrigger value="expenses">المصروفات</TabsTrigger>
-          <TabsTrigger value="reports">التقارير</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -271,12 +297,16 @@ const FinancialManagement = () => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
                     </div>
-                    <Button variant="outline" size="sm">
-                      <Filter className="w-4 h-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Download className="w-4 h-4" />
-                    </Button>
+                    <Select value={typeFilter} onValueChange={setTypeFilter}>
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue placeholder="نوع المعاملة" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">جميع المعاملات</SelectItem>
+                        <SelectItem value="فاتورة">فواتير</SelectItem>
+                        <SelectItem value="اشتراك عضو">اشتراكات</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CardHeader>
@@ -317,12 +347,23 @@ const FinancialManagement = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex gap-2 justify-end">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="w-4 h-4" />
-                            </Button>
+                            {transaction.status === 'مرسلة' ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    await updatePaymentStatus(transaction.id);
+                                  } catch (err) {
+                                    console.error('Error updating payment status:', err);
+                                  }
+                                }}
+                              >
+                                تم الدفع
+                              </Button>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">لا يوجد إجراء</span>
+                            )}
                           </div>
                         </TableCell>
                       </motion.tr>
@@ -340,14 +381,30 @@ const FinancialManagement = () => {
               <CardHeader>
                 <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                   <CardTitle>سجل المصروفات</CardTitle>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-64">
+                      <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        placeholder="البحث في المصروفات..."
+                        className="pr-10 text-right"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue placeholder="حالة المصروف" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">جميع الحالات</SelectItem>
+                        <SelectItem value="paid">مدفوع</SelectItem>
+                        <SelectItem value="pending">معلق</SelectItem>
+                        <SelectItem value="overdue">متأخر</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button
                       className="btn-gradient"
-                      onClick={() => {
-                        // This would open an "Add Expense" dialog
-                        // For now, we'll just log to console
-                        console.log('Add expense clicked');
-                      }}
+                      onClick={() => setShowAddExpense(true)}
                     >
                       <Plus className="w-4 h-4 ml-2" />
                       إضافة مصروف
@@ -379,18 +436,47 @@ const FinancialManagement = () => {
                           {expense.amount.toLocaleString()} د.ل
                         </TableCell>
                         <TableCell className="text-right">
-                          <Badge className={getStatusColor(expense.status)}>
-                            {expense.status}
+                          <Badge className={getStatusColor(getArabicStatus(expense.status))}>
+                            {getArabicStatus(expense.status)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex gap-2 justify-end">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="w-4 h-4" />
-                            </Button>
+                            {getEnglishStatus(expense.status) === 'paid' ? (
+                              <span className="text-sm text-muted-foreground">لا يوجد إجراء</span>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={async () => {
+                                    try {
+                                      await updateExpenseStatus(expense.id, 'paid');
+                                    } catch (err) {
+                                      console.error('Error updating expense status:', err);
+                                    }
+                                  }}
+                                >
+                                  تم الدفع
+                                </Button>
+                                {getEnglishStatus(expense.status) === 'pending' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-red-500 hover:text-red-700"
+                                    onClick={async () => {
+                                      try {
+                                        await updateExpenseStatus(expense.id, 'overdue');
+                                      } catch (err) {
+                                        console.error('Error updating expense status:', err);
+                                      }
+                                    }}
+                                  >
+                                    تأخير
+                                  </Button>
+                                )}
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </motion.tr>
@@ -402,45 +488,22 @@ const FinancialManagement = () => {
           </motion.div>
         </TabsContent>
 
-        <TabsContent value="reports" className="space-y-6">
-          <motion.div className="grid gap-6 md:grid-cols-3">
-            {[
-              {
-                icon: TrendingUp,
-                color: 'text-primary',
-                title: 'التقرير المالي الشهري',
-                desc: 'تقرير شامل عن الأداء المالي للشهر'
-              },
-              {
-                icon: DollarSign,
-                color: 'text-green-500',
-                title: 'تقرير الإيرادات',
-                desc: 'تفصيل الإيرادات حسب المصدر والنوع'
-              },
-              {
-                icon: Receipt,
-                color: 'text-blue-500',
-                title: 'تقرير المصروفات',
-                desc: 'تحليل المصروفات حسب الفئة والتاريخ'
-              }
-            ].map((item, i) => {
-              const Icon = item.icon;
-              return (
-                <motion.div key={i} variants={cardAnim(i)} initial="hidden" animate="show">
-                  <Card className="card-gradient hover-lift cursor-pointer transition-all duration-200">
-                    <CardContent className="p-6 text-center">
-                      <Icon className={`w-12 h-12 ${item.color} mx-auto mb-4`} />
-                      <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-4">{item.desc}</p>
-                      <Button variant="outline" className="w-full">عرض التقرير</Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        </TabsContent>
       </Tabs>
+
+      <AddExpenseDialog
+        isOpen={showAddExpense}
+        onClose={() => setShowAddExpense(false)}
+        onSave={async (expense) => {
+          try {
+            await addExpense(expense);
+            await fetchExpenseTransactions();
+            setActiveTab('expenses');
+            setShowAddExpense(false);
+          } catch (err) {
+            console.error('Error adding expense:', err);
+          }
+        }}
+      />
 
       <CreateInvoiceDialog
         isOpen={showCreateInvoice}
@@ -448,10 +511,11 @@ const FinancialManagement = () => {
         onSave={async (invoice) => {
           try {
             await createInvoice(invoice);
+            await fetchIncomeTransactions();
+            setActiveTab('income');
             setShowCreateInvoice(false);
           } catch (err) {
             console.error('Error creating invoice:', err);
-            // You might want to show an error message to the user here
           }
         }}
       />

@@ -354,11 +354,21 @@ const DashboardLayout = () => {
               </div>
             </div>
             <div className="flex items-center space-x-2 space-x-reverse phone-space-x-1">
-              <Button variant="ghost" size="sm" className="phone-p-2 hover:bg-accent/50 relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="phone-p-2 hover:bg-accent/50 relative"
+                onClick={() => handleNavClick('notifications')}
+              >
                 <Bell className="w-4 h-4" />
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full animate-pulse" />
               </Button>
-              <Button variant="ghost" size="sm" className="phone-p-2 hidden phone:inline-flex hover:bg-accent/50">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="phone-p-2 hidden phone:inline-flex hover:bg-accent/50"
+                onClick={() => handleNavClick('settings')}
+              >
                 <Settings className="w-4 h-4" />
               </Button>
             </div>

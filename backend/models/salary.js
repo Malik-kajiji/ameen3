@@ -4,21 +4,38 @@ const schema = mongoose.Schema
 
 const salarySchema = new schema({
     employeeId: {
-        type:String,
-        required:true,
+        type: String,
+        required: true,
     },
     amount: {
-        type:Number,
-        required:true,
+        type: Number,
+        required: true,
+    },
+    month: {
+        type: String,
+        required: true,
+    },
+    date: {
+        type: Date,
+        required: true,
+    },
+    status: {
+        type: String,
+        required: true,
+        default: 'مدفوع'
     },
     notes: {
-        type:String,
+        type: String,
     }
-},{timestamps:true})
+}, { timestamps: true })
 
-salarySchema.statics.createSalary = async function(employeeId,amount,notes) {
+salarySchema.statics.createSalary = async function(employeeId, amount, month, date, notes) {
     const payment = await this.create({
-        employeeId,amount,notes
+        employeeId,
+        amount,
+        month,
+        date: new Date(date),
+        notes
     });
     return payment;
 }

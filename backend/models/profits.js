@@ -9,7 +9,7 @@ const profitSchema = new schema({
     },
     source: {
         type: String,
-        required: true // e.g. "subscription", "other"
+        required: true // e.g. "subscription", "invoice", "other"
     },
     date: {
         type: Date,
@@ -19,6 +19,22 @@ const profitSchema = new schema({
     note: {
         type: String,
         default: ""
+    },
+    // Invoice details
+    customerName: String,
+    customerEmail: String,
+    customerPhone: String,
+    dueDate: Date,
+    items: [{
+        description: String,
+        quantity: Number,
+        price: Number,
+        total: Number
+    }],
+    status: {
+        type: String,
+        enum: ['مرسلة', 'مدفوعة', 'معلقة', 'متأخرة'],
+        default: 'مرسلة'
     }
 }, { timestamps: true });
 
@@ -29,13 +45,25 @@ const profitSchema = new schema({
  * @param {String} note - Optional note
  * @param {Date} date - Optional profit date (default: now)
  */
-profitSchema.statics.addProfit = async function(amount, source, note = "", date = new Date()) {
-    const profit = await this.create({
+profitSchema.statics.addProfit = async function(amount, source, note = "", date = new Date(), invoiceDetails = null) {
+    const profitData = {
         amount,
         source,
         note,
         date
-    });
+    };
+
+    // Add invoice details if provided
+    if (invoiceDetails) {
+        profitData.customerName = invoiceDetails.customerName;
+        profitData.customerEmail = invoiceDetails.customerEmail;
+        profitData.customerPhone = invoiceDetails.customerPhone;
+        profitData.dueDate = invoiceDetails.dueDate;
+        profitData.items = invoiceDetails.items;
+        profitData.status = invoiceDetails.status || 'مرسلة';
+    }
+
+    const profit = await this.create(profitData);
     return profit;
 };
 

@@ -9,7 +9,8 @@ import {
   TableHeader as THead,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Filter, Plus, Wrench, Settings } from 'lucide-react';
+import { Search, Plus, Wrench, Settings } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SimpleMaintenanceDialog from './SimpleMaintenanceDialog';
 import AssetStatusDialog from './AssetStatusDialog';
 import AddAssetDialog from './AddAssetDialog';
@@ -39,6 +40,7 @@ const tableRowAnim = {
 
 const AssetsManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
@@ -85,11 +87,15 @@ const AssetsManagement = () => {
   };
 
   
-    const filteredAssets = formattedAssets.filter(asset =>
-      asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.index.toString().includes(searchTerm)
-    );
+    const filteredAssets = formattedAssets.filter(asset => {
+      const matchesSearch =
+        asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.index.toString().includes(searchTerm);
+
+      if (statusFilter === 'all') return matchesSearch;
+      return matchesSearch && asset.status === statusFilter;
+    });
   
     const handleUpdateAssetStatus = (asset) => {
       setSelectedAsset(asset);
@@ -267,9 +273,18 @@ const AssetsManagement = () => {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
-                  <Button variant="outline" size="sm">
-                    <Filter className="w-4 h-4" />
-                  </Button>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="حالة الأصل" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع الأصول</SelectItem>
+                      <SelectItem value="ممتاز">ممتاز</SelectItem>
+                      <SelectItem value="جيد">جيد</SelectItem>
+                      <SelectItem value="يحتاج صيانة">يحتاج صيانة</SelectItem>
+                      <SelectItem value="تالف">تالف</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardHeader>

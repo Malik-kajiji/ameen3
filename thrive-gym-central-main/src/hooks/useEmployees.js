@@ -6,6 +6,8 @@ const useEmployees = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [salaryHistory, setSalaryHistory] = useState([]);
   
   // Get user data from Redux store
   const user = useSelector(state => state.userController.user);
@@ -189,6 +191,121 @@ const useEmployees = () => {
     }
   };
 
+  // Get employee attendance records
+  const getEmployeeAttendance = async (employeeId) => {
+    if (!user?.token) {
+      throw new Error('غير مخول بالوصول');
+    }
+    
+    try {
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_BASE_URL}/employees/${employeeId}/attendance`,
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        }
+      );
+      setAttendanceRecords(res.data);
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'فشل في تحميل سجل الحضور');
+    }
+  };
+
+  // Create attendance record
+  const createAttendance = async (employeeId, date, status, hours) => {
+    if (!user?.token) {
+      throw new Error('غير مخول بالوصول');
+    }
+    
+    try {
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/employees/${employeeId}/attendance`,
+        { date, status, hours },
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        }
+      );
+      setAttendanceRecords(prev => [res.data.record, ...prev]);
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'فشل في تسجيل الحضور');
+    }
+  };
+
+  // Update attendance record
+  const updateAttendance = async (id, status, hours) => {
+    if (!user?.token) {
+      throw new Error('غير مخول بالوصول');
+    }
+    
+    try {
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_BASE_URL}/employees/attendance/${id}`,
+        { status, hours },
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        }
+      );
+      setAttendanceRecords(prev => prev.map(record =>
+        record._id === id ? res.data.record : record
+      ));
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'فشل في تحديث سجل الحضور');
+    }
+  };
+
+  // Pay salary
+  const paySalary = async (employeeId, amount, month, date, notes) => {
+    if (!user?.token) {
+      throw new Error('غير مخول بالوصول');
+    }
+    
+    try {
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/employees/${employeeId}/salary`,
+        { amount, month, date, notes },
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        }
+      );
+      setSalaryHistory(prev => [res.data.salary, ...prev]);
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'فشل في دفع الراتب');
+    }
+  };
+
+  // Get salary history
+  const getSalaryHistory = async (employeeId) => {
+    if (!user?.token) {
+      throw new Error('غير مخول بالوصول');
+    }
+    
+    try {
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_BASE_URL}/employees/${employeeId}/salary`,
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        }
+      );
+      setSalaryHistory(res.data);
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'فشل في تحميل سجل الرواتب');
+    }
+  };
+
   useEffect(() => {
     if (user?.token) {
       fetchEmployees();
@@ -199,13 +316,20 @@ const useEmployees = () => {
     employees,
     loading,
     error,
+    attendanceRecords,
+    salaryHistory,
     fetchEmployees,
     fetchEmployeeById,
     createEmployee,
     updateEmployee,
     deleteEmployee,
     setEmployeeActiveStatus,
-    setEmployeeSalary
+    setEmployeeSalary,
+    getEmployeeAttendance,
+    createAttendance,
+    updateAttendance,
+    paySalary,
+    getSalaryHistory
   };
 };
 

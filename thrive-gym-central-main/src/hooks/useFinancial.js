@@ -241,6 +241,58 @@ const useFinancial = () => {
     }
   }, [user?.token, fetchFinancialOverview, fetchIncomeTransactions, fetchExpenseTransactions]);
 
+  // Update payment status
+  const updatePaymentStatus = async (id) => {
+    if (!user?.token) {
+      throw new Error('غير مخول بالوصول');
+    }
+    
+    try {
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_BASE_URL}/financial/income/${id}/status`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        }
+      );
+      
+      // Refresh income transactions
+      await fetchIncomeTransactions(incomePage);
+      
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'فشل في تحديث حالة الدفع');
+    }
+  };
+
+  // Update expense status
+  const updateExpenseStatus = async (id, status) => {
+    if (!user?.token) {
+      throw new Error('غير مخول بالوصول');
+    }
+    
+    try {
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_BASE_URL}/financial/expenses/${id}/status`,
+        { status },
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        }
+      );
+      
+      // Refresh expense transactions
+      await fetchExpenseTransactions(expensePage);
+      
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'فشل في تحديث حالة المصروف');
+    }
+  };
+
   return {
     overview,
     incomeTransactions,
@@ -257,6 +309,8 @@ const useFinancial = () => {
     fetchExpenseTransactions,
     addExpense,
     createInvoice,
+    updatePaymentStatus,
+    updateExpenseStatus,
     fetchFinancialReports
   };
 };

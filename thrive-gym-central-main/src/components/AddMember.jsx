@@ -5,16 +5,20 @@ import { ArrowRight, Upload, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import useMembers from '@/hooks/useMembers';
+import useFinancial from '@/hooks/useFinancial';
+import { useNavigate } from 'react-router-dom';
 
 const AddMember = ({ onNavigate }) => {
   const { toast } = useToast();
   const { createMember, packages, loading: membersLoading, fetchPackages } = useMembers();
+  const { createInvoice } = useFinancial();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
     nationality: '',
     nationalId: '',
+    password: '',
     weight: '',
     height: '',
     occupation: '',
@@ -26,21 +30,77 @@ const AddMember = ({ onNavigate }) => {
 
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   // Fetch packages when component mounts
   useEffect(() => {
     fetchPackages();
   }, [fetchPackages]);
 
+  // Validation functions
+  const validatePhoneNumber = (phone) => {
+    const phoneRegex = /^09\d{8}$/;
+    return phoneRegex.test(phone);
+  };
+
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return false;
+    const birthDate = new Date(dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age >= 16;
+  };
+
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
     setIsSubmitted(true);
     
     // Validate required fields
-    if (!formData.name || !formData.phone || !formData.email || !formData.nationality || !formData.nationalId || !formData.plan) {
+    if (!formData.name || !formData.phone || !formData.email || !formData.nationality || !formData.nationalId || !formData.password || !formData.plan) {
       toast({
         title: "خطأ في الإدخال",
         description: "يرجى ملء جميع الحقول المطلوبة",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate phone number format
+    if (!validatePhoneNumber(formData.phone)) {
+      toast({
+        title: "خطأ في رقم الهاتف",
+        description: "يجب أن يبدأ رقم الهاتف بـ 09 ويتكون من 10 أرقام",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate email format
+    if (!validateEmail(formData.email)) {
+      toast({
+        title: "خطأ في البريد الإلكتروني",
+        description: "يرجى إدخال بريد إلكتروني صحيح",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate age
+    if (!validateAge(formData.dateOfBirth)) {
+      toast({
+        title: "خطأ في العمر",
+        description: "يجب أن يكون عمر العضو 16 سنة أو أكثر",
         variant: "destructive",
       });
       return;
@@ -56,6 +116,7 @@ const AddMember = ({ onNavigate }) => {
         email: formData.email,
         nationality: formData.nationality,
         nationalId: formData.nationalId,
+        password: formData.password,
         weight: formData.weight,
         height: formData.height,
         occupation: formData.occupation,
@@ -65,7 +126,23 @@ const AddMember = ({ onNavigate }) => {
         gender: 'male' // Default to male, could be added to form later
       };
       
-      await createMember(memberData);
+      // Create the member
+      const newMember = await createMember(memberData);
+      
+      // Find the selected package to get its price
+      const selectedPackage = packages.find(pkg => pkg.title === formData.plan);
+      
+      // Create an invoice for the package payment
+      if (selectedPackage) {
+        await createInvoice({
+          amount: selectedPackage.price,
+          source: 'subscription',
+          note: `اشتراك ${selectedPackage.title} - ${selectedPackage.period} يوم`,
+          date: new Date(),
+          userId: newMember._id,
+          packageId: selectedPackage._id
+        });
+      }
       
       toast({
         title: "تم إنشاء العضو بنجاح",
@@ -89,7 +166,7 @@ const AddMember = ({ onNavigate }) => {
       });
       
       // Navigate to members page
-      onNavigate('members');
+      navigate('/dashboard/members');
     } catch (err) {
       toast({
         title: "خطأ في إنشاء العضو",
@@ -186,22 +263,24 @@ const AddMember = ({ onNavigate }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-right">رقم الهاتف *</label>
-                <input 
-                  type="tel" 
-                  className={`w-full px-3 py-2 border ${isSubmitted && !formData.phone ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`} 
-                  value={formData.phone} 
-                  onChange={(e) => handleInputChange('phone', e.target.value)} 
-                  required 
+                <input
+                  type="tel"
+                  className={`w-full px-3 py-2 border ${isSubmitted && (!formData.phone || !validatePhoneNumber(formData.phone)) ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`}
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  placeholder="09XXXXXXXX"
+                  required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-right">عنوان البريد الإلكتروني *</label>
-                <input 
-                  type="email" 
-                  className={`w-full px-3 py-2 border ${isSubmitted && !formData.email ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`} 
-                  value={formData.email} 
-                  onChange={(e) => handleInputChange('email', e.target.value)} 
-                  required 
+                <input
+                  type="email"
+                  className={`w-full px-3 py-2 border ${isSubmitted && (!formData.email || !validateEmail(formData.email)) ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`}
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  placeholder="example@domain.com"
+                  required
                 />
               </div>
               <div>
@@ -222,6 +301,16 @@ const AddMember = ({ onNavigate }) => {
                   value={formData.nationalId} 
                   onChange={(e) => handleInputChange('nationalId', e.target.value)} 
                   required 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 text-right">كلمة المرور *</label>
+                <input
+                  type="password"
+                  className={`w-full px-3 py-2 border ${isSubmitted && !formData.password ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`}
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  required
                 />
               </div>
               <div>
@@ -270,11 +359,12 @@ const AddMember = ({ onNavigate }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-right">تاريخ الميلاد</label>
-                <input 
-                  type="date" 
-                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-right" 
-                  value={formData.dateOfBirth} 
-                  onChange={(e) => handleInputChange('dateOfBirth', e.target.value)} 
+                <input
+                  type="date"
+                  className={`w-full px-3 py-2 border ${isSubmitted && !validateAge(formData.dateOfBirth) ? 'border-red-400' : 'border-input'} rounded-md bg-background text-right`}
+                  value={formData.dateOfBirth}
+                  onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                  required
                 />
               </div>
               <div>
@@ -347,6 +437,7 @@ const AddMember = ({ onNavigate }) => {
             !formData.email ||
             !formData.nationality ||
             !formData.nationalId ||
+            !formData.password ||
             !formData.plan ||
             loading ||
             membersLoading

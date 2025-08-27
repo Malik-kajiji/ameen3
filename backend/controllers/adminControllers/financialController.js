@@ -124,14 +124,16 @@ const getIncomeTransactions = async (req, res) => {
 
         // Format the data
         const transactions = await Promise.all(profits.map(async (profit) => {
-            // Try to find subscription info if source is subscription
             let memberName = 'غير محدد';
             let transactionType = profit.source;
+            let status = 'مدفوع';
             
             if (profit.source === 'subscription') {
-                // You might want to add a userId field to profits when they're created
-                // For now, we'll just show the source
                 transactionType = 'اشتراك عضو';
+            } else if (profit.source === 'invoice') {
+                memberName = profit.customerName || 'غير محدد';
+                transactionType = 'فاتورة';
+                status = profit.status || 'مدفوع';
             }
 
             return {
@@ -140,10 +142,15 @@ const getIncomeTransactions = async (req, res) => {
                 member: memberName,
                 type: transactionType,
                 amount: profit.amount,
-                method: 'نقدي', // Default, could be enhanced
-                status: 'مدفوع',
+                method: 'نقدي',
+                status: status,
                 source: profit.source,
-                note: profit.note
+                note: profit.note,
+                // Include invoice details if available
+                customerEmail: profit.customerEmail,
+                customerPhone: profit.customerPhone,
+                dueDate: profit.dueDate,
+                items: profit.items
             };
         }));
 
@@ -243,29 +250,55 @@ const addExpense = async (req, res) => {
 // Create invoice (add profit from subscription)
 const createInvoice = async (req, res) => {
     try {
-        const { amount, source, note, date, userId, packageId } = req.body;
+        const {
+            customerName,
+            customerEmail,
+            customerPhone,
+            dueDate,
+            notes,
+            items,
+            totalAmount,
+            createdAt,
+            status
+        } = req.body;
 
         // Validate required fields
-        if (!amount || !source) {
+        if (!customerName || !items || !totalAmount) {
             return res.status(400).json({ message: 'الرجاء تعبئة جميع الحقول المطلوبة' });
         }
 
-        // Add profit record
+        // Add profit record with invoice details
         const profit = await profitModel.addProfit(
-            amount,
-            source,
-            note || '',
-            date ? new Date(date) : new Date()
+            totalAmount,
+            'invoice',
+            notes || '',
+            createdAt ? new Date(createdAt) : new Date(),
+            {
+                customerName,
+                customerEmail,
+                customerPhone,
+                dueDate: dueDate ? new Date(dueDate) : null,
+                items,
+                status
+            }
         );
+
+        // Format the response for income transactions list
+        const formattedProfit = {
+            id: profit._id,
+            date: profit.date,
+            member: profit.customerName,
+            type: 'فاتورة',
+            amount: profit.amount,
+            method: 'نقدي',
+            status: profit.status,
+            source: profit.source,
+            note: profit.note
+        };
 
         res.status(201).json({
             message: 'تم إنشاء الفاتورة بنجاح',
-            profit: {
-                id: profit._id,
-                amount: profit.amount,
-                source: profit.source,
-                date: profit.date
-            }
+            profit: formattedProfit
         });
     } catch (err) {
         console.error("Error in createInvoice:", err);
@@ -361,11 +394,92 @@ const getFinancialReports = async (req, res) => {
     }
 };
 
+// Update payment status
+const updatePaymentStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Find and update the profit record
+        const profit = await profitModel.findByIdAndUpdate(
+            id,
+            { status: 'مدفوع' },
+            { new: true }
+        );
+
+        if (!profit) {
+            return res.status(404).json({ message: 'المعاملة غير موجودة' });
+        }
+
+        res.status(200).json({
+            message: 'تم تحديث حالة الدفع بنجاح',
+            profit: {
+                id: profit._id,
+                date: profit.date,
+                member: profit.customerName || 'غير محدد',
+                type: profit.source === 'invoice' ? 'فاتورة' : profit.source,
+                amount: profit.amount,
+                method: 'نقدي',
+                status: profit.status,
+                source: profit.source,
+                note: profit.note
+            }
+        });
+    } catch (err) {
+        console.error("Error in updatePaymentStatus:", err);
+        res.status(400).json({ message: err.message });
+    }
+};
+
+// Update expense status
+const updateExpenseStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        // Validate status
+        if (!['paid', 'pending', 'overdue'].includes(status)) {
+            return res.status(400).json({ message: 'حالة غير صالحة' });
+        }
+
+        // Find and update the expense record
+        const expense = await expenseModel.findByIdAndUpdate(
+            id,
+            { status },
+            { new: true }
+        );
+
+        if (!expense) {
+            return res.status(404).json({ message: 'المصروف غير موجود' });
+        }
+
+        // Format the response
+        const formattedExpense = {
+            id: expense._id,
+            date: expense.date,
+            category: expense.category,
+            description: expense.description,
+            amount: expense.amount,
+            status: expense.status === 'paid' ? 'مدفوع' : expense.status === 'pending' ? 'معلق' : 'متأخر',
+            paymentMethod: expense.paymentMethod === 'cash' ? 'نقدي' : expense.paymentMethod === 'card' ? 'بطاقة' : expense.paymentMethod === 'bank_transfer' ? 'تحويل' : 'آخر'
+        };
+
+        res.status(200).json({
+            message: 'تم تحديث حالة المصروف بنجاح',
+            expense: formattedExpense
+        });
+    } catch (err) {
+        console.error("Error in updateExpenseStatus:", err);
+        res.status(400).json({ message: err.message });
+    }
+};
+
 module.exports = {
     getFinancialOverview,
     getIncomeTransactions,
     getExpenseTransactions,
     addExpense,
     createInvoice,
+    updatePaymentStatus,
+    updateExpenseStatus,
     getFinancialReports
 };

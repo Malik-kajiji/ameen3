@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Filter, Download, Plus, Edit, Eye, Trash2, Calendar } from 'lucide-react';
+import { Search, Plus, Edit, Eye, Trash2, Calendar } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import EmployeeDetailsDialog from './EmployeeDetailsDialog';
 import AddEmployeeDialog from './AddEmployeeDialog';
 import AttendanceCalendar from './AttendanceCalendar';
@@ -17,6 +18,7 @@ const cardAnim = i => ({
 
 const EmployeesManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'inactive'
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -48,12 +50,17 @@ const EmployeesManagement = () => {
     );
   }
 
-  const filteredEmployees = employees.filter(emp =>
-    (emp.fullName && emp.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (emp.id && emp.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (emp.role && emp.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (emp.jobTitle && emp.jobTitle.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredEmployees = employees.filter(emp => {
+    const matchesSearch = (emp.fullName && emp.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (emp.id && emp.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (emp.role && emp.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (emp.jobTitle && emp.jobTitle.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    if (statusFilter === 'all') return matchesSearch;
+    if (statusFilter === 'active') return matchesSearch && emp.isActive !== false;
+    if (statusFilter === 'inactive') return matchesSearch && emp.isActive === false;
+    return matchesSearch;
+  });
 
   const handleSaveEmployee = async (updatedEmployee) => {
     try {
@@ -145,12 +152,16 @@ const EmployeesManagement = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <Button variant="outline" size="sm">
-                  <Filter className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Download className="w-4 h-4" />
-                </Button>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="حالة الموظف" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">جميع الموظفين</SelectItem>
+                    <SelectItem value="active">نشط</SelectItem>
+                    <SelectItem value="inactive">غير نشط</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </CardHeader>
@@ -187,32 +198,16 @@ const EmployeesManagement = () => {
                       <TableCell className="text-right">{employee.hireDate}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             onClick={() => handleViewEmployee(employee)}
                             title="عرض التفاصيل"
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleViewAttendance(employee)}
-                            title="سجل الحضور"
-                          >
-                            <Calendar className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleViewEmployee(employee)}
-                            title="تعديل"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             className="text-red-500 hover:text-red-700"
                             title="حذف"

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -30,11 +30,35 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Edit, Save, X } from 'lucide-react';
+import useFinancial from '@/hooks/useFinancial';
+import useEmployees from '@/hooks/useEmployees';
 
 
 const EmployeeDetailsDialog = ({ employee, isOpen, onClose, onSave }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedEmployee, setEditedEmployee] = useState(employee);
+  const [newAttendanceDate, setNewAttendanceDate] = useState('');
+  const [newAttendanceHours, setNewAttendanceHours] = useState('8');
+  const [newAttendanceStatus, setNewAttendanceStatus] = useState('حضر');
+  
+  const {
+    getEmployeeAttendance,
+    createAttendance,
+    updateAttendance,
+    paySalary,
+    getSalaryHistory,
+    attendanceRecords,
+    salaryHistory
+  } = useEmployees();
+
+  useEffect(() => {
+    if (employee?.id) {
+      getEmployeeAttendance(employee.id);
+      getSalaryHistory(employee.id);
+    }
+  }, [employee?.id]);
+
+  const { createInvoice } = useFinancial();
 
   const handleSave = () => {
     if (editedEmployee) {
@@ -50,18 +74,6 @@ const EmployeeDetailsDialog = ({ employee, isOpen, onClose, onSave }) => {
 
   if (!employee) return null;
 
-  const attendanceHistory = [
-    { date: '2024‑01‑15', status: 'حضر', hours: '8 ساعات' },
-    { date: '2024‑01‑14', status: 'حضر', hours: '8 ساعات' },
-    { date: '2024‑01‑13', status: 'غائب', hours: '0 ساعات' },
-    { date: '2024‑01‑12', status: 'حضر', hours: '7 ساعات' },
-  ];
-
-  const salaryHistory = [
-    { month: 'يناير 2024', amount: '800 د.ل', status: 'مدفوع', date: '2024‑01‑31' },
-    { month: 'ديسمبر 2023', amount: '800 د.ل', status: 'مدفوع', date: '2023‑12‑31' },
-    { month: 'نوفمبر 2023', amount: '750 د.ل', status: 'مدفوع', date: '2023‑11‑30' },
-  ];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -113,11 +125,10 @@ const EmployeeDetailsDialog = ({ employee, isOpen, onClose, onSave }) => {
         </DialogHeader>
 
         <Tabs defaultValue="info" className="w-full mt-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="info">المعلومات الأساسية</TabsTrigger>
             <TabsTrigger value="attendance">سجل الحضور</TabsTrigger>
             <TabsTrigger value="salary">تاريخ الرواتب</TabsTrigger>
-            <TabsTrigger value="performance">التقييم</TabsTrigger>
           </TabsList>
 
           <TabsContent value="info" className="space-y-4 mt-4">
@@ -293,22 +304,97 @@ const EmployeeDetailsDialog = ({ employee, isOpen, onClose, onSave }) => {
 
           <TabsContent value="attendance" className="mt-4">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>سجل الحضور</CardTitle>
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    className="px-3 py-2 border border-input rounded-md bg-background"
+                    value={newAttendanceDate}
+                    onChange={(e) => setNewAttendanceDate(e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    className="w-20 px-3 py-2 border border-input rounded-md bg-background"
+                    value={newAttendanceHours}
+                    onChange={(e) => setNewAttendanceHours(e.target.value)}
+                    min="0"
+                    max="24"
+                  />
+                  <Select value={newAttendanceStatus} onValueChange={setNewAttendanceStatus}>
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="حضر">حضر</SelectItem>
+                      <SelectItem value="غائب">غائب</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    className="btn-gradient"
+                    onClick={async () => {
+                      await createAttendance(
+                        employee.id,
+                        newAttendanceDate,
+                        newAttendanceStatus,
+                        parseInt(newAttendanceHours)
+                      );
+                      setNewAttendanceDate('');
+                      setNewAttendanceHours('8');
+                      setNewAttendanceStatus('حضر');
+                    }}
+                  >
+                    إضافة
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-2">
-                {attendanceHistory.map((record, idx) => (
+                {attendanceRecords.map((record) => (
                   <div
-                    key={idx}
+                    key={record._id}
                     className="flex items-center justify-between p-3 border rounded rtl:flex-row-reverse"
                   >
                     <div>
-                      <div className="font-medium">{record.date}</div>
-                      <div className="text-sm text-muted-foreground">{record.hours}</div>
+                      <div className="font-medium">
+                        {new Date(record.date).toLocaleDateString('ar-EG')}
+                      </div>
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          className="w-20 mt-1 px-2 py-1 border border-input rounded-md bg-background"
+                          value={record.hours}
+                          onChange={(e) => {
+                            updateAttendance(record._id, record.status, parseInt(e.target.value));
+                          }}
+                          min="0"
+                          max="24"
+                        />
+                      ) : (
+                        <div className="text-sm text-muted-foreground">
+                          {record.hours} ساعات
+                        </div>
+                      )}
                     </div>
-                    <Badge variant={record.status === 'حضر' ? 'default' : 'destructive'}>
-                      {record.status}
-                    </Badge>
+                    {isEditing ? (
+                      <Select
+                        value={record.status}
+                        onValueChange={(value) => {
+                          updateAttendance(record._id, value, record.hours);
+                        }}
+                      >
+                        <SelectTrigger className="w-[100px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="حضر">حضر</SelectItem>
+                          <SelectItem value="غائب">غائب</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge variant={record.status === 'حضر' ? 'default' : 'destructive'}>
+                        {record.status}
+                      </Badge>
+                    )}
                   </div>
                 ))}
               </CardContent>
@@ -317,23 +403,40 @@ const EmployeeDetailsDialog = ({ employee, isOpen, onClose, onSave }) => {
 
           <TabsContent value="salary" className="mt-4">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>تاريخ الرواتب</CardTitle>
+                <Button
+                  className="btn-gradient"
+                  onClick={async () => {
+                    const date = new Date().toISOString().split('T')[0];
+                    const month = new Date().toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
+                    
+                    await paySalary(
+                      employee.id,
+                      employee.salary,
+                      month,
+                      date,
+                      `راتب شهر ${month}`
+                    );
+                  }}
+                >
+                  دفع راتب هذا الشهر
+                </Button>
               </CardHeader>
               <CardContent className="space-y-2">
-                {salaryHistory.map((record, idx) => (
+                {salaryHistory.map((record) => (
                   <div
-                    key={idx}
+                    key={record._id}
                     className="flex items-center justify-between p-3 border rounded rtl:flex-row-reverse"
                   >
                     <div>
                       <div className="font-medium">{record.month}</div>
                       <div className="text-sm text-muted-foreground">
-                        تاريخ الدفع: {record.date}
+                        تاريخ الدفع: {new Date(record.date).toLocaleDateString('ar-EG')}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 rtl:flex-row-reverse rtl:space-x-reverse">
-                      <span className="font-bold text-green-600">{record.amount}</span>
+                      <span className="font-bold text-green-600">{record.amount} د.ل</span>
                       <Badge variant="default">{record.status}</Badge>
                     </div>
                   </div>
@@ -342,47 +445,6 @@ const EmployeeDetailsDialog = ({ employee, isOpen, onClose, onSave }) => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="performance" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>تقييم الأداء</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>التقييم العام</Label>
-                    <div className="flex items-center justify-end gap-2 rtl:flex-row-reverse rtl:space-x-reverse mt-1">
-                      <span className="text-2xl font-bold text-green-600">4.5</span>
-                      <span className="text-sm text-muted-foreground">من 5</span>
-                    </div>
-                  </div>
-                  <div>
-                    <Label>عدد التقييمات</Label>
-                    <div className="text-2xl font-bold text-primary mt-1">12</div>
-                  </div>
-                </div>
-
-                {[
-                  { label: 'الالتزام', value: 4, color: 'bg-green-500' },
-                  { label: 'جودة العمل', value: 5, color: 'bg-green-500' },
-                  { label: 'التعاون', value: 3, color: 'bg-yellow-500' },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between">
-                    <span>{item.label}</span>
-                    <div className="flex items-center gap-2 rtl:flex-row-reverse rtl:space-x-reverse">
-                      <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={`h-2 ${item.color} rounded-full`}
-                          style={{ width: `${(item.value / 5) * 100}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm">{item.value}/5</span>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>

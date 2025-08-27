@@ -8,6 +8,8 @@ const {
     getExpenseTransactions,
     addExpense,
     createInvoice,
+    updatePaymentStatus,
+    updateExpenseStatus,
     getFinancialReports
 } = require('../../controllers/adminControllers/financialController');
 
@@ -29,7 +31,13 @@ router.post('/expenses', addExpense);
 // Create invoice
 router.post('/invoices', createInvoice);
 
+// Update payment status
+router.put('/income/:id/status', updatePaymentStatus);
+
 // Get financial reports
 router.get('/reports', getFinancialReports);
+
+// Update expense status
+router.put('/expenses/:id/status', updateExpenseStatus);
 
 module.exports = router;

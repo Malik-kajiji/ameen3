@@ -1,20 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Filter, Download, Plus, Edit, Eye, Trash2 } from 'lucide-react';
+import { Search, Plus, Edit, Eye, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import MemberDetailsDialog from './MemberDetailsDialog';
 import EditMemberDialog from './EditMemberDialog';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import useMembers from '@/hooks/useMembers';
 
-const MembersManagement = ({ onNavigate }) => {
+const MembersManagement = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('الكل');
   const [selectedMember, setSelectedMember] = useState(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const navigate = useNavigate();
+  
   
   const { members, loading, error, fetchMembers, deleteMember } = useMembers();
 
@@ -31,11 +36,15 @@ const MembersManagement = ({ onNavigate }) => {
     }
   };
 
-  const filteredMembers = members.filter(member =>
-    member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.status.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredMembers = members.filter(member => {
+    const matchesSearch =
+      member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.id.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'الكل' || member.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   const handleViewDetails = (member) => {
     setSelectedMember(member);
@@ -135,7 +144,7 @@ const MembersManagement = ({ onNavigate }) => {
           </div>
           <Button
             className="btn-gradient"
-            onClick={() => onNavigate?.('add-member')}
+            onClick={() => navigate('/dashboard/add-member')}
           >
             <Plus className="w-4 h-4 ml-2" />
             إضافة عضو جديد
@@ -159,12 +168,17 @@ const MembersManagement = ({ onNavigate }) => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <Button variant="outline" size="sm">
-                  <Filter className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Download className="w-4 h-4" />
-                </Button>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="حالة العضو" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="الكل">الكل</SelectItem>
+                    <SelectItem value="نشط">نشط</SelectItem>
+                    <SelectItem value="متوقف">متوقف</SelectItem>
+                    <SelectItem value="منتهي">منتهي</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </CardHeader>
