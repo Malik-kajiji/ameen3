@@ -9,7 +9,8 @@ const {
     deleteReport,
     generateReport,
     getScheduledReports,
-    toggleSchedule
+    toggleSchedule,
+    downloadReport
 } = require('../../controllers/adminControllers/reportController');
 
 // Apply admin middleware to all routes
@@ -35,5 +36,11 @@ router.post('/:id/generate', generateReport);
 
 // Toggle report schedule
 router.patch('/:id/schedule', toggleSchedule);
+
+// Download report
+router.get('/:type/:period/:format', downloadReport);
+
+// Download report
+router.get('/download/:type/:period/:format', downloadReport);
 
 module.exports = router;

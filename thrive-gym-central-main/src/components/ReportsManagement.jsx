@@ -42,7 +42,7 @@ const ReportsManagement = () => {
     setDownloading(prev => ({ ...prev, [downloadKey]: true }));
     try {
       const response = await axios.get(
-        `${import.meta.env.VITE_API_BASE_URL}/reports/download/${report.type}/${period}/${format}`,
+        `${import.meta.env.VITE_API_BASE_URL}/reports/${report.type}/${period}/${format}`,
         {
           headers: {
             'Authorization': `Bearer ${user?.token}`
@@ -65,7 +65,7 @@ const ReportsManagement = () => {
 
       // Get filename from Content-Disposition header or use default
       const contentDisposition = response.headers['content-disposition'];
-      let filename = `${report.title}-${period}.${format === 'word' ? 'docx' : format === 'excel' ? 'xlsx' : 'pdf'}`;
+      let filename = `${report.title}-${period}.xlsx`;
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename=(.+)/);
         if (filenameMatch) {
@@ -305,53 +305,21 @@ const ReportsManagement = () => {
                       <p className="text-sm phone-text-xs text-muted-foreground">{report.description}</p>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="phone-p-1 relative"
-                      disabled={downloading[`${report.type}-word`]}
-                      onClick={async () => {
-                        handleDownload(report, selectedPeriod, 'word')
-                      }}
-                    >
-                      {downloading[`${report.type}-word`] ? (
-                        <span className="animate-spin">⏳</span>
-                      ) : (
-                        'Word'
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="phone-p-1 relative"
-                      disabled={downloading[`${report.type}-excel`]}
-                      onClick={async () => {
-                        handleDownload(report, selectedPeriod, 'excel')
-                      }}
-                    >
-                      {downloading[`${report.type}-excel`] ? (
-                        <span className="animate-spin">⏳</span>
-                      ) : (
-                        'Excel'
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="phone-p-1 relative"
-                      disabled={downloading[`${report.type}-pdf`]}
-                      onClick={async () => {
-                        handleDownload(report, selectedPeriod, 'pdf')
-                      }}
-                    >
-                      {downloading[`${report.type}-pdf`] ? (
-                        <span className="animate-spin">⏳</span>
-                      ) : (
-                        'PDF'
-                      )}
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="phone-p-1 relative"
+                    disabled={downloading[`${report.type}-xlsx`]}
+                    onClick={async () => {
+                      handleDownload(report, selectedPeriod, 'xlsx')
+                    }}
+                  >
+                    {downloading[`${report.type}-xlsx`] ? (
+                      <span className="animate-spin">⏳</span>
+                    ) : (
+                      'تحميل'
+                    )}
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="phone-p-4">

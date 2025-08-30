@@ -8,7 +8,7 @@ import useMembers from '@/hooks/useMembers';
 import useFinancial from '@/hooks/useFinancial';
 import { useNavigate } from 'react-router-dom';
 
-const AddMember = ({ onNavigate }) => {
+const AddMember = () => {
   const { toast } = useToast();
   const { createMember, packages, loading: membersLoading, fetchPackages } = useMembers();
   const { createInvoice } = useFinancial();
@@ -231,7 +231,7 @@ const AddMember = ({ onNavigate }) => {
     >
       <motion.div variants={cardVariant}>
         <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => onNavigate('members')}>
+          <Button variant="outline" onClick={() => navigate('/dashboard/members')}>
             <ArrowRight className="w-4 h-4 ml-2" />
             العودة إلى الأعضاء
           </Button>
@@ -445,7 +445,7 @@ const AddMember = ({ onNavigate }) => {
         >
           {loading ? 'جاري الإنشاء...' : 'إنشاء عضو'}
         </Button>
-        <Button variant="outline" onClick={() => onNavigate('members')}>
+        <Button variant="outline" onClick={() => navigate('/dashboard/members')}>
           إلغاء
         </Button>
       </motion.div>

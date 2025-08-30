@@ -1,4 +1,5 @@
 const reportModel = require('../../models/report');
+const ExcelJS = require('exceljs');
 const userModel = require('../../models/user');
 const employeeModel = require('../../models/employee');
 const expenseModel = require('../../models/expense');
@@ -297,6 +298,183 @@ const toggleSchedule = async (req, res) => {
     }
 };
 
+// Download report in specified format
+const downloadReport = async (req, res) => {
+    try {
+        const { type, period, format } = req.params;
+
+        if (format !== 'xlsx') {
+            return res.status(400).json({ message: 'Unsupported format. Only xlsx is supported.' });
+        }
+
+        // Get date range based on period
+        const now = new Date();
+        let from, to;
+        switch (period) {
+            case 'daily':
+                from = new Date(now.setHours(0, 0, 0, 0));
+                to = new Date(now.setHours(23, 59, 59, 999));
+                break;
+            case 'weekly':
+                from = new Date(now.setDate(now.getDate() - now.getDay()));
+                to = new Date(now.setDate(now.getDate() + 6));
+                break;
+            case 'monthly':
+                from = new Date(now.getFullYear(), now.getMonth(), 1);
+                to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                break;
+            case 'yearly':
+                from = new Date(now.getFullYear(), 0, 1);
+                to = new Date(now.getFullYear(), 11, 31);
+                break;
+            default:
+                return res.status(400).json({ message: 'Invalid period' });
+        }
+
+        // Create a new workbook
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Report');
+
+        // Add data based on report type
+        switch (type) {
+            case 'membership':
+                const users = await userModel.find({
+                    createdAt: { $gte: from, $lte: to }
+                });
+                
+                worksheet.columns = [
+                    { header: 'الاسم', key: 'name', width: 20 },
+                    { header: 'البريد الإلكتروني', key: 'email', width: 30 },
+                    { header: 'رقم الهاتف', key: 'phone', width: 15 },
+                    { header: 'نوع العضوية', key: 'membershipType', width: 15 },
+                    { header: 'الحالة', key: 'status', width: 10 },
+                    { header: 'تاريخ التسجيل', key: 'createdAt', width: 20 }
+                ];
+
+                users.forEach(user => {
+                    worksheet.addRow({
+                        name: user.name,
+                        email: user.email,
+                        phone: user.phone,
+                        membershipType: user.membershipType,
+                        status: user.status,
+                        createdAt: user.createdAt.toLocaleDateString('ar-LY')
+                    });
+                });
+                break;
+
+            case 'financial':
+                const profits = await profitModel.find({
+                    date: { $gte: from, $lte: to }
+                });
+                const expenses = await expenseModel.find({
+                    date: { $gte: from, $lte: to }
+                });
+
+                worksheet.columns = [
+                    { header: 'النوع', key: 'type', width: 15 },
+                    { header: 'المصدر', key: 'source', width: 20 },
+                    { header: 'المبلغ', key: 'amount', width: 15 },
+                    { header: 'التاريخ', key: 'date', width: 20 },
+                    { header: 'ملاحظات', key: 'notes', width: 30 }
+                ];
+
+                profits.forEach(profit => {
+                    worksheet.addRow({
+                        type: 'إيراد',
+                        source: profit.source,
+                        amount: profit.amount,
+                        date: profit.date.toLocaleDateString('ar-LY'),
+                        notes: profit.notes
+                    });
+                });
+
+                expenses.forEach(expense => {
+                    worksheet.addRow({
+                        type: 'مصروف',
+                        source: expense.category,
+                        amount: -expense.amount,
+                        date: expense.date.toLocaleDateString('ar-LY'),
+                        notes: expense.description
+                    });
+                });
+                break;
+
+            case 'assets':
+                const assets = await assetModel.find({
+                    createdAt: { $gte: from, $lte: to }
+                });
+
+                worksheet.columns = [
+                    { header: 'اسم المعدة', key: 'name', width: 20 },
+                    { header: 'النوع', key: 'type', width: 15 },
+                    { header: 'الحالة', key: 'status', width: 15 },
+                    { header: 'تكلفة الشراء', key: 'purchaseCost', width: 15 },
+                    { header: 'تاريخ الشراء', key: 'purchaseDate', width: 20 },
+                    { header: 'آخر صيانة', key: 'lastMaintenance', width: 20 }
+                ];
+
+                assets.forEach(asset => {
+                    worksheet.addRow({
+                        name: asset.name,
+                        type: asset.type,
+                        status: asset.status,
+                        purchaseCost: asset.purchaseCost,
+                        purchaseDate: asset.purchaseDate.toLocaleDateString('ar-LY'),
+                        lastMaintenance: asset.lastMaintenance?.toLocaleDateString('ar-LY') || 'لا يوجد'
+                    });
+                });
+                break;
+
+            case 'employees':
+                const employees = await employeeModel.find({
+                    createdAt: { $gte: from, $lte: to }
+                });
+
+                worksheet.columns = [
+                    { header: 'الاسم', key: 'name', width: 20 },
+                    { header: 'الوظيفة', key: 'position', width: 15 },
+                    { header: 'الراتب', key: 'salary', width: 15 },
+                    { header: 'رقم الهاتف', key: 'phone', width: 15 },
+                    { header: 'البريد الإلكتروني', key: 'email', width: 30 },
+                    { header: 'تاريخ التعيين', key: 'hireDate', width: 20 }
+                ];
+
+                employees.forEach(employee => {
+                    worksheet.addRow({
+                        name: employee.name,
+                        position: employee.position,
+                        salary: employee.salary,
+                        phone: employee.phone,
+                        email: employee.email,
+                        hireDate: employee.hireDate.toLocaleDateString('ar-LY')
+                    });
+                });
+                break;
+
+            default:
+                return res.status(400).json({ message: 'Invalid report type' });
+        }
+
+        // Set RTL direction for the worksheet
+        worksheet.views = [{ rightToLeft: true }];
+
+        // Write to buffer
+        const buffer = await workbook.xlsx.writeBuffer();
+
+        // Set response headers
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=${type}-${period}-report.xlsx`);
+
+        // Send the buffer
+        res.send(buffer);
+
+    } catch (err) {
+        console.error("Error in downloadReport:", err);
+        res.status(400).json({ message: err.message });
+    }
+};
+
 module.exports = {
     getReports,
     createReport,
@@ -304,5 +482,6 @@ module.exports = {
     deleteReport,
     generateReport,
     getScheduledReports,
-    toggleSchedule
+    toggleSchedule,
+    downloadReport
 };

@@ -11,8 +11,21 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { CalendarIcon, Save, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+
+// Validation functions
+const validatePhoneNumber = (phone) => {
+  const phoneRegex = /^09\d{8}$/;
+  return phoneRegex.test(phone);
+};
+
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
 
 const AddEmployeeDialog = ({ isOpen, onClose, onSave }) => {
+  const { toast } = useToast();
   const [employeeData, setEmployeeData] = useState({
     name: '',
     role: '',
@@ -28,6 +41,36 @@ const AddEmployeeDialog = ({ isOpen, onClose, onSave }) => {
   });
 
   const handleSave = () => {
+    // Validate required fields
+    if (!employeeData.name || !employeeData.role || !employeeData.phone || !employeeData.email || !employeeData.password) {
+      toast({
+        title: "خطأ في الإدخال",
+        description: "يرجى ملء جميع الحقول المطلوبة",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate phone number format
+    if (!validatePhoneNumber(employeeData.phone)) {
+      toast({
+        title: "خطأ في رقم الهاتف",
+        description: "يجب أن يبدأ رقم الهاتف بـ 09 ويتكون من 10 أرقام",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate email format
+    if (!validateEmail(employeeData.email)) {
+      toast({
+        title: "خطأ في البريد الإلكتروني",
+        description: "يرجى إدخال بريد إلكتروني صحيح",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const newEmployee = {
       id: `EMP${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
       ...employeeData,
@@ -99,9 +142,15 @@ const AddEmployeeDialog = ({ isOpen, onClose, onSave }) => {
                 id="phone"
                 value={employeeData.phone}
                 onChange={(e) => setEmployeeData({ ...employeeData, phone: e.target.value })}
-                className="text-right"
-                placeholder="+218 XX XXX XXXX"
+                className={cn(
+                  "text-right",
+                  employeeData.phone && !validatePhoneNumber(employeeData.phone) && "border-red-500"
+                )}
+                placeholder="09XXXXXXXX"
               />
+              {employeeData.phone && !validatePhoneNumber(employeeData.phone) && (
+                <p className="text-sm text-red-500 mt-1">يجب أن يبدأ رقم الهاتف بـ 09 ويتكون من 10 أرقام</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -111,9 +160,15 @@ const AddEmployeeDialog = ({ isOpen, onClose, onSave }) => {
                 type="email"
                 value={employeeData.email}
                 onChange={(e) => setEmployeeData({ ...employeeData, email: e.target.value })}
-                className="text-right"
-                placeholder="@gmail.com"
+                className={cn(
+                  "text-right",
+                  employeeData.email && !validateEmail(employeeData.email) && "border-red-500"
+                )}
+                placeholder="example@domain.com"
               />
+              {employeeData.email && !validateEmail(employeeData.email) && (
+                <p className="text-sm text-red-500 mt-1">يرجى إدخال بريد إلكتروني صحيح</p>
+              )}
             </div>
 
             <div className="space-y-2">

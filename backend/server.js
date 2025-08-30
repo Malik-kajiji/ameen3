@@ -43,7 +43,6 @@ const employeeAttendanceRoutes = require('./routes/adminRoutes/employeeAttendanc
 const financialRoutes = require('./routes/adminRoutes/financialRoutes');
 const assetRoutes = require('./routes/adminRoutes/assetRoutes');
 const dashboardStatsRoutes = require('./routes/adminRoutes/dashboardStatsRoutes');
-const reportDownloadRoutes = require('./routes/adminRoutes/reportDownloadRoutes');
 const reportRoutes = require('./routes/adminRoutes/reportRoutes');
 const adminRoutes = require('./routes/adminRoutes/adminRoutes');
 const settingsRoutes = require('./routes/adminRoutes/settingsRoutes');
@@ -62,7 +61,6 @@ app.use('/employees', employeeAttendanceRoutes);
 app.use('/financial', financialRoutes);
 app.use('/assets', assetRoutes);
 app.use('/dashboard-stats', dashboardStatsRoutes);
-app.use('/reports/download', reportDownloadRoutes);
 app.use('/reports', reportRoutes);
 
 // test routes

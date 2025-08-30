@@ -14,6 +14,8 @@ import {
   Tabs, TabsContent, TabsList, TabsTrigger,
 } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 
 import {
   Building,
@@ -28,11 +30,13 @@ import {
   Clock,
   DollarSign,
   Save,
+  X,
 } from 'lucide-react';
 import useSettings from '@/hooks/useSettings';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('general');
+  const [showWarning, setShowWarning] = useState(true);
   const { settings, loading, updateSettings } = useSettings();
   
   const [generalSettings, setGeneralSettings] = useState({
@@ -121,6 +125,22 @@ const Settings = () => {
   return (
 
     <div className="space-y-6" dir="rtl">
+      {showWarning && (
+        <Alert
+          variant="warning"
+          className="bg-[#f39c12] text-white border-[#f39c12] flex justify-between items-center"
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              هذه البيانات خاصة بالنظام ولن يتم عرضها في الموقع
+            </AlertDescription>
+          </div>
+          <button onClick={() => setShowWarning(false)} className="text-white hover:opacity-80">
+            <X className="h-4 w-4" />
+          </button>
+        </Alert>
+      )}
 
       <div className="text-right">
         <h2 className="text-3xl font-bold tracking-tight">إعدادات النظام</h2>

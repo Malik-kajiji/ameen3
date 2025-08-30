@@ -23,13 +23,13 @@ import {
 import { useLogout } from '@/hooks/useLogout';
 import { Button } from '@/components/ui/button';
 
-const PhoenixLogo = ({ size = 'default' }) => {
+const IgnisLogo = ({ size = 'default' }) => {
 
   const dimensions = size === 'small' ? 'w-8 h-8' : 'w-12 h-12';
   return (
     <img
-      src="/Phoenix.svg"
-      alt="شعار صالة فينيكس"
+      src="/Ignis.svg"
+      alt="شعار صالة إغنيس"
       className={`${dimensions} object-contain drop-shadow-md select-none`}
       draggable={false}
     />
@@ -177,15 +177,15 @@ const DashboardLayout = () => {
           <div className="flex items-center justify-between">
             {sidebarOpen && (
               <div className="flex items-center space-x-3 space-x-reverse animate-fade-in">
-                <PhoenixLogo />
+                <IgnisLogo />
                 <div className="flex flex-col text-right">
-                  <span className="text-lg font-bold text-gradient">صالة فينيكس</span>
+                  <span className="text-lg font-bold text-gradient">صالة إغنيس</span>
                   <span className="text-xs text-muted-foreground font-medium">نظام الإدارة</span>
                 </div>
               </div>
             )}
             {!sidebarOpen && (
-              <PhoenixLogo size="small" />
+              <IgnisLogo size="small" />
             )}
             <Button
               variant="ghost"
@@ -253,9 +253,9 @@ const DashboardLayout = () => {
         <div className="p-4 border-b border-border/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3 space-x-reverse">
-              <PhoenixLogo />
+              <IgnisLogo />
               <div className="flex flex-col text-right">
-                <span className="phone-text-base font-bold text-gradient">صالة فينيكس</span>
+                <span className="phone-text-base font-bold text-gradient">صالة إغنيس</span>
                 <span className="phone-text-xs text-muted-foreground font-medium">نظام الإدارة</span>
               </div>
             </div>
@@ -346,10 +346,10 @@ const DashboardLayout = () => {
               </Button>
               <div className="flex items-center space-x-2 space-x-reverse">
                 <div className="hidden phone:block">
-                  <PhoenixLogo size="small" />
+                  <IgnisLogo size="small" />
                 </div>
                 <h1 className="phone-text-lg md:text-2xl font-bold truncate bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  إدارة صالة فينيكس
+                  إدارة صالة إغنيس
                 </h1>
               </div>
             </div>

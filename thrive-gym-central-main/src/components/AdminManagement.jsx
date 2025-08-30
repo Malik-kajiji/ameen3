@@ -2,14 +2,17 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Filter, Plus, Edit, Trash2, Shield, UserCheck } from 'lucide-react';
+import { Filter, Plus, Edit, Trash2, Shield, UserCheck } from 'lucide-react';
 import { useAdmin } from '@/hooks/useAdmin';
 import AddAdminDialog from './AddAdminDialog';
+import EditAdminDialog from './EditAdminDialog';
 
 const AdminManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('admins');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedAdmin, setSelectedAdmin] = useState(null);
   const { admins, getAdmins, createAdmin, updateAdmin, deleteAdmin } = useAdmin();
 
   useEffect(() => {
@@ -143,20 +146,14 @@ const AdminManagement = () => {
           <CardHeader>
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
               <CardTitle>مستخدمو النظام</CardTitle>
-              <div className="flex gap-2 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-64">
-                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <input
-                    type="text"
-                    placeholder="البحث في المشرفين..."
-                    className="w-full pr-10 pl-4 py-2 border border-input rounded-md bg-background text-right"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <Button variant="outline" size="sm">
-                  <Filter className="w-4 h-4" />
-                </Button>
+              <div className="relative flex-1 sm:w-64">
+                <input
+                  type="text"
+                  placeholder="البحث في المشرفين..."
+                  className="w-full px-4 py-2 border border-input rounded-md bg-background text-right"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
             </div>
           </CardHeader>
@@ -197,7 +194,14 @@ const AdminManagement = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
-                          <Button variant="ghost" size="sm">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedAdmin(admin);
+                              setIsEditDialogOpen(true);
+                            }}
+                          >
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
@@ -260,6 +264,22 @@ const AdminManagement = () => {
             setIsAddDialogOpen(false);
           }
         }}
+      />
+
+      <EditAdminDialog
+        isOpen={isEditDialogOpen}
+        onClose={() => {
+          setIsEditDialogOpen(false);
+          setSelectedAdmin(null);
+        }}
+        onSave={async (data) => {
+          const success = await updateAdmin(data);
+          if (success) {
+            setIsEditDialogOpen(false);
+            setSelectedAdmin(null);
+          }
+        }}
+        admin={selectedAdmin}
       />
     </div>
   );

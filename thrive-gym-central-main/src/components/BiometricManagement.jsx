@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,55 +29,39 @@ const cardAnim = i => ({
 const tabAnim = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { duration: 0.3 } }, exit: { opacity: 0, transition: { duration: 0.1 } } };
 
 const BiometricManagement = () => {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('devices');
 
-  const devices = [
-    {
-      id: 'DEV-002', 
-      name: 'جهاز منطقة الأوزان',
-      type: 'card',
-      status: 'نشط',
-      location: 'منطقة الأوزان',
-      lastSync: '2024-01-20 14:25',
-      usersCount: 98
-    },
-    {
-      id: 'DEV-003',
-      name: 'جهاز صالة الكارديو',
-      type: 'fingerprint',
-      status: 'غير متصل',
-      location: 'صالة الكارديو',
-      lastSync: '2024-01-19 16:45',
-      usersCount: 87
-    }
-  ];
+  useEffect(() => {
+    toast({
+      title: "لا توجد أجهزة بصمة حاليا",
+      variant: "destructive",
+      duration: 5000
+    });
+  }, []);
 
-  const accessLogs = [
-    {
-      id: 'LOG-002',
-      memberName: 'فاطمة علي',
-      memberId: 'GM045',
-      device: 'جهاز منطقة الأوزان',
-      timestamp: '2024-01-20 08:25:43',
-      status: 'نجح',
-      method: 'بطاقة ممغنطة'
-    },
-    {
-      id: 'LOG-003',
-      memberName: 'سارة حسن',
-      memberId: 'GM078',
-      device: 'بوابة المدخل الرئيسي',
-      timestamp: '2024-01-20 08:20:12',
-      status: 'فشل',
-      method: 'بصمة الإصبع'
-    }
-  ];
+  const handleNewFingerprint = () => {
+    toast({
+      title: "لا يوجد أي جهاز بصمة مقترن",
+      variant: "destructive"
+    });
+  };
+
+  const handleNewDevice = () => {
+    toast({
+      title: "لا يوجد أي جهاز بصمة مقترن",
+      variant: "destructive"
+    });
+  };
+
+  const devices = [];
+  const accessLogs = [];
 
   const stats = [
-    { label: 'إجمالي الأجهزة', value: '3', change: '0', trend: 'stable', icon: Fingerprint },
-    { label: 'الأجهزة النشطة', value: '2', change: '0', trend: 'stable', icon: CheckCircle },
-    { label: 'المستخدمين المسجلين', value: '310', change: '+5', trend: 'up', icon: Users },
-    { label: 'محاولات الوصول اليوم', value: '247', change: '+12', trend: 'up', icon: Activity }
+    { label: 'إجمالي الأجهزة', value: '0', change: '0', trend: 'stable', icon: Fingerprint },
+    { label: 'الأجهزة النشطة', value: '0', change: '0', trend: 'stable', icon: CheckCircle },
+    { label: 'المستخدمين المسجلين', value: '0', change: '0', trend: 'stable', icon: Users },
+    { label: 'محاولات الوصول اليوم', value: '0', change: '0', trend: 'stable', icon: Activity }
   ];
 
   const getStatusColor = (status) => {
@@ -112,18 +97,6 @@ const BiometricManagement = () => {
           <motion.h2 className="text-3xl font-bold tracking-tight" initial={{ x: 30, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>إدارة البصمة والدخول</motion.h2>
           <motion.p className="text-muted-foreground" initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.08 }}>مراقبة أجهزة البصمة وسجلات الدخول</motion.p>
         </div>
-        <motion.div initial={{ opacity: 0, scale: 0.93 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.16 }}>
-          <div className="flex gap-2">
-            <Button variant="outline">
-              <Download className="w-4 h-4 ml-2" />
-              تصدير السجلات
-            </Button>
-            <Button variant="outline">
-              <Upload className="w-4 h-4 ml-2" />
-              مزامنة الأجهزة
-            </Button>
-          </div>
-        </motion.div>
       </motion.div>
 
       <motion.div className="grid gap-4 grid-cols-1 md:grid-cols-4">
@@ -192,8 +165,8 @@ const BiometricManagement = () => {
             <Card className="card-gradient">
               <CardHeader>
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-right">الأجهزة المسجلة ({devices.length})</CardTitle>
-                  <Button className="btn-gradient">
+                  <CardTitle className="text-right">الأجهزة المسجلة (0)</CardTitle>
+                  <Button className="btn-gradient" onClick={handleNewDevice}>
                     <Settings className="w-4 h-4 ml-2" />
                     إضافة جهاز جديد
                   </Button>
@@ -268,7 +241,7 @@ const BiometricManagement = () => {
             <Card className="card-gradient">
               <CardHeader>
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-right">سجلات الدخول الأخيرة ({accessLogs.length})</CardTitle>
+                  <CardTitle className="text-right">سجلات الدخول الأخيرة (0)</CardTitle>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm">
                       <Clock className="w-4 h-4 ml-2" />
@@ -342,11 +315,11 @@ const BiometricManagement = () => {
                     يمكنك إضافة أو تعديل أو حذف بصمات الأعضاء من هنا
                   </p>
                   <div className="flex gap-2 justify-center">
-                    <Button className="btn-gradient">
+                    <Button className="btn-gradient" onClick={handleNewFingerprint}>
                       <UserCheck className="w-4 h-4 ml-2" />
                       تسجيل بصمة جديدة
                     </Button>
-                    <Button variant="outline">
+                    <Button variant="outline" disabled>
                       <Users className="w-4 h-4 ml-2" />
                       إدارة البصمات الموجودة
                     </Button>
